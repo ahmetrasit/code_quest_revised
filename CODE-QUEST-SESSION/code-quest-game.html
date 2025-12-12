@@ -529,8 +529,10 @@ function spawnEnemy() {
         metalness: 0.7
     });
     const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-    weapon.rotation.x = Math.PI / 2; // Point forward
-    weapon.position.set(0, -0.2, -0.35); // At end of lower arm, pointing forward
+    // Cone points +Y by default. Rotate -90° around X to point toward -Z (forward)
+    // Then the spike extends from the fist when arm is thrust forward
+    weapon.rotation.x = -Math.PI / 2;
+    weapon.position.set(0, -0.3, 0); // At the fist, pointing outward from hand
     enemy.weapon = weapon;
     rightLowerArm.add(weapon);
 
@@ -730,9 +732,9 @@ function updatePlayer(delta) {
         game.stats.energy -= 20;
     }
     
-    // Block ability
+    // Block ability (instant toggle - hold Shift to block, release to unblock)
     if (game.keys['shift']) {
-        if (!game.abilities.block.active && game.abilities.block.cooldown <= 0) {
+        if (!game.abilities.block.active) {
             game.abilities.block.active = true;
             // Change torso color to blue when blocking
             if (game.player.torso) {
@@ -742,7 +744,7 @@ function updatePlayer(delta) {
     } else {
         if (game.abilities.block.active) {
             game.abilities.block.active = false;
-            game.abilities.block.cooldown = game.abilities.block.maxCooldown;
+            // No cooldown - can block again immediately
             // Change torso back to green
             if (game.player.torso) {
                 game.player.torso.material.emissive.setHex(0x00ff00);
@@ -814,19 +816,19 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         // If attacking while dashing, extend right arm forward
         if (isAttacking) {
-            game.player.rightArmPivot.rotation.x = -1.2;
-            game.player.rightElbowPivot.rotation.x = -0.3;
+            game.player.rightArmPivot.rotation.x = 1.2;  // Forward (positive)
+            game.player.rightElbowPivot.rotation.x = 0.3;
         }
     }
     // BLOCKING ANIMATION
     else if (isBlocking) {
-        // Arms in X formation (rotate shoulder and elbow pivots)
-        game.player.rightArmPivot.rotation.x = -0.8;
-        game.player.rightArmPivot.rotation.z = -0.5;
-        game.player.leftArmPivot.rotation.x = -0.8;
-        game.player.leftArmPivot.rotation.z = 0.5;
-        game.player.rightElbowPivot.rotation.x = -0.8;
-        game.player.leftElbowPivot.rotation.x = -0.8;
+        // Arms in X formation in FRONT of body (positive X = forward)
+        game.player.rightArmPivot.rotation.x = 0.8;   // Forward
+        game.player.rightArmPivot.rotation.z = -0.3;  // Slight outward tilt
+        game.player.leftArmPivot.rotation.x = 0.8;    // Forward
+        game.player.leftArmPivot.rotation.z = 0.3;    // Slight outward tilt
+        game.player.rightElbowPivot.rotation.x = 0.8; // Bend toward body
+        game.player.leftElbowPivot.rotation.x = 0.8;
 
         // Legs still animate if walking
         if (isMovingForward || isMovingBackward) {
@@ -846,15 +848,15 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     }
     // ATTACKING ANIMATION
     else if (isAttacking) {
-        // Right arm extends forward (rotate pivots)
-        game.player.rightArmPivot.rotation.x = -1.5;
-        game.player.rightElbowPivot.rotation.x = -0.2;
+        // Right arm extends forward (positive X rotation swings arm forward)
+        game.player.rightArmPivot.rotation.x = 1.5;  // Forward thrust
+        game.player.rightElbowPivot.rotation.x = 0.2;
 
         // Torso leans forward
         game.player.torso.rotation.x = 0.2;
 
-        // Left arm stays back
-        game.player.leftArmPivot.rotation.x = 0.3;
+        // Left arm stays back (negative = backward)
+        game.player.leftArmPivot.rotation.x = -0.3;
         game.player.leftElbowPivot.rotation.x = 0;
 
         game.player.speedLines.forEach(line => line.visible = false);
@@ -972,15 +974,15 @@ function animateEnemy(enemy, delta) {
     if (enemy.isAttacking) {
         enemy.attackAnimTime += delta;
 
-        // Right arm thrusts forward (rotate shoulder pivot)
-        enemy.rightArmPivot.rotation.x = -1.5;
-        enemy.rightElbowPivot.rotation.x = -0.3;
+        // Right arm thrusts forward (positive X = forward)
+        enemy.rightArmPivot.rotation.x = 1.5;
+        enemy.rightElbowPivot.rotation.x = 0.3;
 
         // Torso leans forward aggressively
         enemy.torso.rotation.x = 0.3;
 
-        // Left arm stays back for balance
-        enemy.leftArmPivot.rotation.x = 0.5;
+        // Left arm stays back for balance (negative = backward)
+        enemy.leftArmPivot.rotation.x = -0.5;
 
         // Legs brace
         enemy.rightLegPivot.rotation.x = -0.2;
