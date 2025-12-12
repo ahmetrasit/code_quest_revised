@@ -269,7 +269,7 @@ function createPlayer() {
         emissiveIntensity: 1.0
     });
     const visor = new THREE.Mesh(visorGeometry, visorMaterial);
-    visor.position.set(0, 0, 0.3); // Relative to head
+    visor.position.set(0, 0, -0.3); // Relative to head - FRONT of face (toward -Z movement direction)
     game.player.visor = visor;
     head.add(visor);
 
@@ -491,7 +491,7 @@ function spawnEnemy() {
         emissiveIntensity: 1.0
     });
     const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye.position.set(0, 0, 0.25); // Relative to head
+    eye.position.set(0, 0, -0.25); // Relative to head - FRONT of face (toward -Z movement direction)
     enemy.eye = eye;
     head.add(eye);
 
@@ -878,6 +878,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Arms swing smoothly
         game.player.rightArmPivot.rotation.x = moonwalkCycle * 0.3;
         game.player.leftArmPivot.rotation.x = -moonwalkCycle * 0.3;
+        game.player.rightArmPivot.rotation.z = 0; // Reset z-rotation from blocking
+        game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = 0;
         game.player.leftElbowPivot.rotation.x = 0;
 
@@ -894,6 +896,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Arms swing opposite to legs (rotate pivots)
         game.player.rightArmPivot.rotation.x = -walkCycle * 0.5;
         game.player.leftArmPivot.rotation.x = walkCycle * 0.5;
+        game.player.rightArmPivot.rotation.z = 0; // Reset z-rotation from blocking
+        game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = -0.2;
         game.player.leftElbowPivot.rotation.x = -0.2;
 
@@ -920,6 +924,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Arms sway slightly
         game.player.rightArmPivot.rotation.x = turnCycle * 0.2;
         game.player.leftArmPivot.rotation.x = -turnCycle * 0.2;
+        game.player.rightArmPivot.rotation.z = 0; // Reset z-rotation from blocking
+        game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = 0;
         game.player.leftElbowPivot.rotation.x = 0;
 
