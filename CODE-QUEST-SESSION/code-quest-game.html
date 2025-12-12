@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE QUEST - Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            background: #000;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #0f0;
+            font-size: 14px;
+            text-shadow: 0 0 10px #0f0;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .stat-bar {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .bar-container {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #0f0;
+            margin-left: 10px;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            background: #0f0;
+            transition: width 0.3s;
+        }
+        
+        .health-bar { background: #f00; }
+        .energy-bar { background: #00f; }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #0f0;
+            font-size: 12px;
+            text-shadow: 0 0 5px #0f0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="hud">
+        <div class="stat-bar">
+            <span>HEALTH:</span>
+            <div class="bar-container">
+                <div class="bar-fill health-bar" id="healthBar"></div>
+            </div>
+            <span id="healthText"></span>
+        </div>
+        <div class="stat-bar">
+            <span>ENERGY:</span>
+            <div class="bar-container">
+                <div class="bar-fill energy-bar" id="energyBar"></div>
+            </div>
+            <span id="energyText"></span>
+        </div>
+        <div style="margin-top: 10px;">
+            <div>ENEMIES: <span id="enemyCount">0</span></div>
+            <div>FPS: <span id="fps">60</span></div>
+        </div>
+    </div>
+    
+    <div id="controls">
+        W/S - Forward/Back | A/D - Rotate | Click - Attack | Space - Dash | Shift - Block
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+// Game state
+const game = {
+    scene: null,
+    camera: null,
+    renderer: null,
+    player: null,
+    enemies: [],
+    keys: {},
+    mouse: { x: 0, y: 0 },
+    stats: {
+        health: 100,
+        maxHealth: 100,
+        energy: 100,
+        maxEnergy: 100,
+        attack: 10,
+        defense: 5,
+        speed: 5
+    },
+    abilities: {
+        dash: { cooldown: 0, maxCooldown: 3 },
+        block: { cooldown: 0, maxCooldown: 2, active: false }
+    }
+};
+
+// Check if Three.js loaded
+if (typeof THREE === 'undefined') {
+    document.body.innerHTML = '<div style="color: white; padding: 20px;">ERROR: Three.js failed to load. Check your internet connection.</div>';
+    throw new Error('Three.js not loaded');
+}
+
+// Initialize Three.js
+function init() {
+    console.log('Initializing game...');
+    
+    // Scene
+    game.scene = new THREE.Scene();
+    game.scene.background = new THREE.Color(0x1a1a2e);
+    
+    // Camera
+    game.camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+    game.camera.position.set(0, 8, 12);
+    game.camera.lookAt(0, 0, 0);
+    
+    // Renderer
+    const canvas = document.getElementById('gameCanvas');
+    game.renderer = new THREE.WebGLRenderer({ 
+        canvas: canvas,
+        antialias: true 
+    });
+    game.renderer.setSize(window.innerWidth, window.innerHeight);
+    game.renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Brighter lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    game.scene.add(ambientLight);
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(10, 20, 10);
+    game.scene.add(dirLight);
+    
+    // Additional point light at origin
+    const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+    pointLight.position.set(0, 10, 0);
+    game.scene.add(pointLight);
+    
+    // Ground with brighter color
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2a2a4a,
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    game.scene.add(ground);
+    
+    console.log('Ground added');
+    
+    // Visible grid
+    const gridHelper = new THREE.GridHelper(100, 50, 0x00ff00, 0x00ff00);
+    gridHelper.position.y = 0.01;
+    game.scene.add(gridHelper);
+    
+    console.log('Grid added');
+    
+    // Create player
+    createPlayer();
+    console.log('Player created at:', game.player.position);
+    
+    // Create initial enemies
+    for (let i = 0; i < 5; i++) {
+        spawnEnemy();
+    }
+    console.log('Enemies spawned:', game.enemies.length);
+    
+    // Event listeners
+    window.addEventListener('resize', onResize);
+    document.addEventListener('keydown', (e) => game.keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', (e) => game.keys[e.key.toLowerCase()] = false);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('click', onMouseClick);
+    
+    console.log('Starting animation loop...');
+    
+    // Start game loop
+    animate();
+}
+
+// Create player with detailed body parts
+function createPlayer() {
+    // Main container
+    game.player = new THREE.Group();
+    game.player.position.set(0, 0, 0);
+    
+    // Torso (body)
+    const torsoGeometry = new THREE.BoxGeometry(0.8, 1.0, 0.5);
+    const torsoMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x00ff00,
+        emissive: 0x00ff00,
+        emissiveIntensity: 0.5,
+        metalness: 0.3,
+        roughness: 0.7
+    });
+    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    torso.position.y = 1.5;
+    game.player.torso = torso;
+    game.player.add(torso);
+    
+    // Head
+    const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x00ff00,
+        emissive: 0x00ff00,
+        emissiveIntensity: 0.7
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 2.3;
+    game.player.head = head;
+    game.player.add(head);
+    
+    // Visor/eyes
+    const visorGeometry = new THREE.BoxGeometry(0.5, 0.15, 0.35);
+    const visorMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 1.0
+    });
+    const visor = new THREE.Mesh(visorGeometry, visorMaterial);
+    visor.position.set(0, 2.3, 0.3);
+    game.player.add(visor);
+    
+    // Right Upper Arm
+    const upperArmGeometry = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+    const armMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x00cc00,
+        emissive: 0x00cc00,
+        emissiveIntensity: 0.3
+    });
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    rightUpperArm.position.set(0.5, 1.7, 0);
+    game.player.rightUpperArm = rightUpperArm;
+    game.player.add(rightUpperArm);
+    
+    // Right Lower Arm
+    const lowerArmGeometry = new THREE.BoxGeometry(0.18, 0.5, 0.18);
+    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
+    rightLowerArm.position.set(0.5, 1.0, 0);
+    game.player.rightLowerArm = rightLowerArm;
+    game.player.add(rightLowerArm);
+    
+    // Left Upper Arm
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    leftUpperArm.position.set(-0.5, 1.7, 0);
+    game.player.leftUpperArm = leftUpperArm;
+    game.player.add(leftUpperArm);
+    
+    // Left Lower Arm
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
+    leftLowerArm.position.set(-0.5, 1.0, 0);
+    game.player.leftLowerArm = leftLowerArm;
+    game.player.add(leftLowerArm);
+    
+    // Right Upper Leg
+    const upperLegGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.3);
+    const legMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x009900,
+        emissive: 0x009900,
+        emissiveIntensity: 0.3
+    });
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    rightUpperLeg.position.set(0.25, 0.7, 0);
+    game.player.rightUpperLeg = rightUpperLeg;
+    game.player.add(rightUpperLeg);
+    
+    // Right Lower Leg
+    const lowerLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    rightLowerLeg.position.set(0.25, 0.25, 0);
+    game.player.rightLowerLeg = rightLowerLeg;
+    game.player.add(rightLowerLeg);
+    
+    // Right Foot
+    const footGeometry = new THREE.BoxGeometry(0.28, 0.15, 0.4);
+    const footMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x006600,
+        emissive: 0x006600,
+        emissiveIntensity: 0.3
+    });
+    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    rightFoot.position.set(0.25, 0.08, 0.1);
+    game.player.rightFoot = rightFoot;
+    game.player.add(rightFoot);
+    
+    // Left Upper Leg
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    leftUpperLeg.position.set(-0.25, 0.7, 0);
+    game.player.leftUpperLeg = leftUpperLeg;
+    game.player.add(leftUpperLeg);
+    
+    // Left Lower Leg
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    leftLowerLeg.position.set(-0.25, 0.25, 0);
+    game.player.leftLowerLeg = leftLowerLeg;
+    game.player.add(leftLowerLeg);
+    
+    // Left Foot
+    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    leftFoot.position.set(-0.25, 0.08, 0.1);
+    game.player.leftFoot = leftFoot;
+    game.player.add(leftFoot);
+    
+    // Weapon on right arm
+    const weaponHandle = new THREE.BoxGeometry(0.15, 0.15, 0.6);
+    const weaponHandleMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x888888,
+        metalness: 0.5
+    });
+    const handle = new THREE.Mesh(weaponHandle, weaponHandleMaterial);
+    handle.position.set(0.5, 0.7, -0.3);
+    game.player.add(handle);
+    
+    const weaponBlade = new THREE.BoxGeometry(0.3, 0.1, 1.2);
+    const weaponBladeMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 0.7,
+        metalness: 0.8
+    });
+    game.player.weapon = new THREE.Mesh(weaponBlade, weaponBladeMaterial);
+    game.player.weapon.position.set(0.5, 0.7, -0.9);
+    game.player.add(game.player.weapon);
+    
+    // Animation state
+    game.player.animTime = 0;
+    game.player.walkCycle = 0;
+    
+    // Player properties
+    game.player.velocity = new THREE.Vector3();
+    game.player.rotation.y = 0;
+    game.player.health = game.stats.health;
+    game.player.isAttacking = false;
+    game.player.attackCooldown = 0;
+    game.player.isDashing = false;
+    game.player.dashTime = 0;
+    
+    // Speed lines for dashing (initially hidden)
+    game.player.speedLines = [];
+    for (let i = 0; i < 5; i++) {
+        const lineGeometry = new THREE.BoxGeometry(0.1, 0.1, 2);
+        const lineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.6
+        });
+        const line = new THREE.Mesh(lineGeometry, lineMaterial);
+        line.visible = false;
+        game.player.speedLines.push(line);
+        game.player.add(line);
+    }
+    
+    game.scene.add(game.player);
+    console.log('Animated player added to scene');
+}
+
+// Spawn enemy
+function spawnEnemy() {
+    // Enemy body
+    const bodyGeometry = new THREE.BoxGeometry(0.7, 1.2, 0.5);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xff0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.5,
+        metalness: 0.2,
+        roughness: 0.8
+    });
+    const enemy = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    
+    // Enemy head
+    const headGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xaa0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.6
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 0.85;
+    enemy.add(head);
+    
+    // Enemy eye
+    const eyeGeometry = new THREE.BoxGeometry(0.4, 0.1, 0.3);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffff00,
+        emissive: 0xffff00,
+        emissiveIntensity: 1.0
+    });
+    const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    eye.position.set(0, 0.85, 0.25);
+    enemy.add(eye);
+    
+    // Random spawn position
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 10 + Math.random() * 10;
+    enemy.position.set(
+        Math.cos(angle) * distance,
+        0.6,
+        Math.sin(angle) * distance
+    );
+    
+    console.log('Enemy spawned at:', enemy.position);
+    
+    // Enemy properties
+    enemy.health = 30;
+    enemy.maxHealth = 30;
+    enemy.attackDamage = 5;
+    enemy.speed = 2;
+    enemy.attackCooldown = 0;
+    enemy.attackRange = 2;
+    enemy.detectionRange = 15;
+    enemy.isActive = true;
+    enemy.bodyMaterial = bodyMaterial; // Store reference for color changes
+    
+    game.enemies.push(enemy);
+    game.scene.add(enemy);
+}
+
+// Update player
+function updatePlayer(delta) {
+    if (!game.player || delta > 0.1) return;
+    
+    if (game.player.attackCooldown > 0) {
+        game.player.attackCooldown -= delta;
+    }
+    
+    if (game.player.dashTime > 0) {
+        game.player.dashTime -= delta;
+        if (game.player.dashTime <= 0) {
+            game.player.isDashing = false;
+        }
+    }
+    
+    for (let ability in game.abilities) {
+        if (game.abilities[ability].cooldown > 0) {
+            game.abilities[ability].cooldown -= delta;
+        }
+    }
+    
+    // Energy regeneration system
+    if (game.stats.energy <= 0) {
+        // Out of energy - rapid recharge but can't move
+        game.stats.energy = Math.min(game.stats.maxEnergy, game.stats.energy + 50 * delta);
+    } else if (game.stats.energy < game.stats.maxEnergy) {
+        // Normal slow regeneration
+        game.stats.energy = Math.min(game.stats.maxEnergy, game.stats.energy + 3 * delta);
+    }
+    
+    // Can't do anything with no energy
+    if (game.stats.energy <= 0) {
+        return;
+    }
+    
+    const moveSpeed = game.player.isDashing ? game.stats.speed * 3 : game.stats.speed;
+    const rotateSpeed = 3;
+    let isMoving = false;
+    let isMovingForward = false;
+    let isMovingBackward = false;
+    let isRotating = false;
+    
+    // A/D rotates player (no energy cost)
+    if (game.keys['a'] || game.keys['arrowleft']) {
+        game.player.rotation.y += rotateSpeed * delta;
+        isRotating = true;
+    }
+    if (game.keys['d'] || game.keys['arrowright']) {
+        game.player.rotation.y -= rotateSpeed * delta;
+        isRotating = true;
+    }
+    
+    // W/S moves forward/backward (costs energy)
+    if (game.keys['w'] || game.keys['arrowup']) {
+        game.player.position.x -= Math.sin(game.player.rotation.y) * moveSpeed * delta;
+        game.player.position.z -= Math.cos(game.player.rotation.y) * moveSpeed * delta;
+        isMoving = true;
+        isMovingForward = true;
+    }
+    if (game.keys['s'] || game.keys['arrowdown']) {
+        game.player.position.x += Math.sin(game.player.rotation.y) * moveSpeed * delta;
+        game.player.position.z += Math.cos(game.player.rotation.y) * moveSpeed * delta;
+        isMoving = true;
+        isMovingBackward = true;
+    }
+    
+    // Walking drains energy (1 per 5 seconds = 0.2 per second)
+    if (isMoving && !game.player.isDashing) {
+        game.stats.energy -= 0.2 * delta;
+        if (game.stats.energy < 0) game.stats.energy = 0;
+    }
+    
+    // Dash ability (can use anytime if sufficient energy)
+    if (game.keys[' '] && !game.player.isDashing && game.stats.energy >= 20) {
+        game.player.isDashing = true;
+        game.player.dashTime = 0.3;
+        game.abilities.dash.cooldown = game.abilities.dash.maxCooldown;
+        game.stats.energy -= 20;
+    }
+    
+    // Block ability
+    if (game.keys['shift']) {
+        if (!game.abilities.block.active && game.abilities.block.cooldown <= 0) {
+            game.abilities.block.active = true;
+            // Change torso color to blue when blocking
+            if (game.player.torso) {
+                game.player.torso.material.emissive.setHex(0x0000ff);
+            }
+        }
+    } else {
+        if (game.abilities.block.active) {
+            game.abilities.block.active = false;
+            game.abilities.block.cooldown = game.abilities.block.maxCooldown;
+            // Change torso back to green
+            if (game.player.torso) {
+                game.player.torso.material.emissive.setHex(0x00ff00);
+            }
+        }
+    }
+    
+    game.player.position.x = Math.max(-45, Math.min(45, game.player.position.x));
+    game.player.position.z = Math.max(-45, Math.min(45, game.player.position.z));
+    
+    // Camera always behind player
+    const cameraDistance = 10;
+    const cameraHeight = 8;
+    
+    const targetCamX = game.player.position.x + Math.sin(game.player.rotation.y) * cameraDistance;
+    const targetCamZ = game.player.position.z + Math.cos(game.player.rotation.y) * cameraDistance;
+    const targetCamY = game.player.position.y + cameraHeight;
+    
+    game.camera.position.x += (targetCamX - game.camera.position.x) * 0.1;
+    game.camera.position.z += (targetCamZ - game.camera.position.z) * 0.1;
+    game.camera.position.y += (targetCamY - game.camera.position.y) * 0.1;
+    game.camera.lookAt(game.player.position);
+    
+    // Animate body parts
+    animatePlayer(delta, isMovingForward, isMovingBackward, isRotating);
+}
+
+// Animate player body parts
+function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
+    if (!game.player) return;
+    
+    game.player.animTime += delta;
+    
+    const isBlocking = game.abilities.block.active;
+    const isDashing = game.player.isDashing;
+    const isAttacking = game.player.isAttacking;
+    
+    // Reset positions
+    const walkSpeed = 4;
+    const walkAmplitude = 0.3;
+    
+    // DASHING ANIMATION
+    if (isDashing) {
+        // Arms stretched back
+        game.player.rightUpperArm.rotation.x = -1.5;
+        game.player.leftUpperArm.rotation.x = -1.5;
+        game.player.rightLowerArm.position.z = 0.3;
+        game.player.leftLowerArm.position.z = 0.3;
+        
+        // Torso leans forward
+        game.player.torso.rotation.x = 0.3;
+        
+        // Fast leg movement
+        const dashCycle = Math.sin(game.player.animTime * 15);
+        game.player.rightUpperLeg.rotation.x = dashCycle * 0.8;
+        game.player.leftUpperLeg.rotation.x = -dashCycle * 0.8;
+        game.player.rightLowerLeg.rotation.x = Math.max(0, dashCycle) * 0.5;
+        game.player.leftLowerLeg.rotation.x = Math.max(0, -dashCycle) * 0.5;
+        
+        // Speed lines
+        for (let i = 0; i < game.player.speedLines.length; i++) {
+            const line = game.player.speedLines[i];
+            line.visible = true;
+            line.position.set(
+                (Math.random() - 0.5) * 0.5,
+                1 + (Math.random() - 0.5) * 0.8,
+                0.5 + i * 0.3
+            );
+        }
+        
+        // If attacking while dashing, extend right arm forward
+        if (isAttacking) {
+            game.player.rightUpperArm.rotation.x = -0.8;
+            game.player.rightLowerArm.position.z = -0.5;
+        }
+    }
+    // BLOCKING ANIMATION
+    else if (isBlocking) {
+        // Arms in X formation
+        game.player.rightUpperArm.rotation.x = -0.5;
+        game.player.rightUpperArm.rotation.z = -0.8;
+        game.player.leftUpperArm.rotation.x = -0.5;
+        game.player.leftUpperArm.rotation.z = 0.8;
+        
+        game.player.rightLowerArm.position.set(0.3, 1.3, -0.2);
+        game.player.leftLowerArm.position.set(-0.3, 1.3, -0.2);
+        
+        // Legs still animate if walking
+        if (isMovingForward || isMovingBackward) {
+            const walkCycle = Math.sin(game.player.animTime * walkSpeed);
+            game.player.rightUpperLeg.rotation.x = walkCycle * walkAmplitude;
+            game.player.leftUpperLeg.rotation.x = -walkCycle * walkAmplitude;
+        } else {
+            game.player.rightUpperLeg.rotation.x = 0;
+            game.player.leftUpperLeg.rotation.x = 0;
+        }
+        
+        // Hide speed lines
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+    // ATTACKING ANIMATION
+    else if (isAttacking) {
+        // Right arm extends forward
+        game.player.rightUpperArm.rotation.x = -1.2;
+        game.player.rightLowerArm.position.z = -0.6;
+        
+        // Torso leans forward
+        game.player.torso.rotation.x = 0.2;
+        
+        // Left arm stays back
+        game.player.leftUpperArm.rotation.x = 0.3;
+        
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+    // MOONWALK (walking backward easter egg!)
+    else if (isMovingBackward) {
+        // Smooth glide animation
+        const moonwalkCycle = Math.sin(game.player.animTime * 5);
+        
+        // Legs do Michael Jackson moonwalk
+        game.player.rightUpperLeg.rotation.x = moonwalkCycle * 0.4;
+        game.player.leftUpperLeg.rotation.x = -moonwalkCycle * 0.4;
+        game.player.rightLowerLeg.rotation.x = Math.abs(moonwalkCycle) * 0.3;
+        game.player.leftLowerLeg.rotation.x = Math.abs(moonwalkCycle) * 0.3;
+        
+        // Feet slide
+        game.player.rightFoot.rotation.x = -0.2;
+        game.player.leftFoot.rotation.x = -0.2;
+        
+        // Arms swing smoothly
+        game.player.rightUpperArm.rotation.x = moonwalkCycle * 0.3;
+        game.player.leftUpperArm.rotation.x = -moonwalkCycle * 0.3;
+        
+        // Torso upright and smooth
+        game.player.torso.rotation.x = 0;
+        game.player.torso.position.y = 1.5 + Math.abs(moonwalkCycle) * 0.05;
+        
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+    // NORMAL WALKING
+    else if (isMovingForward) {
+        const walkCycle = Math.sin(game.player.animTime * walkSpeed);
+        
+        // Arms swing opposite to legs
+        game.player.rightUpperArm.rotation.x = -walkCycle * 0.5;
+        game.player.leftUpperArm.rotation.x = walkCycle * 0.5;
+        game.player.rightLowerArm.position.z = walkCycle * 0.1;
+        game.player.leftLowerArm.position.z = -walkCycle * 0.1;
+        
+        // Legs walk
+        game.player.rightUpperLeg.rotation.x = walkCycle * walkAmplitude;
+        game.player.leftUpperLeg.rotation.x = -walkCycle * walkAmplitude;
+        game.player.rightLowerLeg.rotation.x = Math.max(0, walkCycle) * 0.4;
+        game.player.leftLowerLeg.rotation.x = Math.max(0, -walkCycle) * 0.4;
+        
+        // Torso slight bob and sway
+        game.player.torso.position.y = 1.5 + Math.abs(walkCycle) * 0.05;
+        game.player.torso.rotation.z = walkCycle * 0.05;
+        game.player.torso.rotation.x = 0;
+        
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+    // ROTATING (turning)
+    else if (isRotating) {
+        const turnCycle = Math.sin(game.player.animTime * 3);
+        
+        // Slight lean in turn direction
+        game.player.torso.rotation.z = turnCycle * 0.1;
+        
+        // Arms sway slightly
+        game.player.rightUpperArm.rotation.x = turnCycle * 0.2;
+        game.player.leftUpperArm.rotation.x = -turnCycle * 0.2;
+        
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+    // IDLE
+    else {
+        // Gentle idle breathing
+        const breathCycle = Math.sin(game.player.animTime * 2);
+        game.player.torso.position.y = 1.5 + breathCycle * 0.02;
+        
+        // Arms at rest
+        game.player.rightUpperArm.rotation.x = 0;
+        game.player.leftUpperArm.rotation.x = 0;
+        game.player.rightUpperArm.rotation.z = 0;
+        game.player.leftUpperArm.rotation.z = 0;
+        
+        // Legs at rest
+        game.player.rightUpperLeg.rotation.x = 0;
+        game.player.leftUpperLeg.rotation.x = 0;
+        game.player.rightLowerLeg.rotation.x = 0;
+        game.player.leftLowerLeg.rotation.x = 0;
+        
+        // Reset positions
+        game.player.torso.rotation.x = 0;
+        game.player.torso.rotation.z = 0;
+        game.player.rightLowerArm.position.set(0.5, 1.0, 0);
+        game.player.leftLowerArm.position.set(-0.5, 1.0, 0);
+        game.player.rightFoot.rotation.x = 0;
+        game.player.leftFoot.rotation.x = 0;
+        
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
+}
+
+// Update enemies
+function updateEnemies(delta) {
+    for (let i = game.enemies.length - 1; i >= 0; i--) {
+        const enemy = game.enemies[i];
+        
+        if (!enemy.isActive) continue;
+        
+        if (enemy.attackCooldown > 0) {
+            enemy.attackCooldown -= delta;
+        }
+        
+        const distanceToPlayer = enemy.position.distanceTo(game.player.position);
+        
+        if (distanceToPlayer < enemy.detectionRange) {
+            if (distanceToPlayer > enemy.attackRange) {
+                const direction = new THREE.Vector3()
+                    .subVectors(game.player.position, enemy.position)
+                    .normalize();
+                
+                enemy.position.x += direction.x * enemy.speed * delta;
+                enemy.position.z += direction.z * enemy.speed * delta;
+                
+                enemy.lookAt(game.player.position);
+            } else {
+                if (enemy.attackCooldown <= 0) {
+                    attackPlayer(enemy);
+                    enemy.attackCooldown = 1.5;
+                }
+            }
+        }
+        
+        if (enemy.health <= 0) {
+            game.scene.remove(enemy);
+            game.enemies.splice(i, 1);
+            setTimeout(() => spawnEnemy(), 2000);
+        }
+    }
+}
+
+// Enemy attacks player
+function attackPlayer(enemy) {
+    const damage = game.abilities.block.active ? 
+        Math.max(1, enemy.attackDamage - game.stats.defense) : 
+        enemy.attackDamage;
+    
+    game.stats.health -= damage;
+    
+    // Flash effect on torso
+    if (game.player.torso) {
+        const originalEmissive = game.player.torso.material.emissive.getHex();
+        game.player.torso.material.emissive.setHex(0xff0000);
+        setTimeout(() => {
+            game.player.torso.material.emissive.setHex(originalEmissive);
+        }, 100);
+    }
+    
+    if (game.stats.health <= 0) {
+        respawnPlayer();
+    }
+}
+
+// Player attack
+function playerAttack() {
+    if (game.player.attackCooldown > 0 || game.player.isAttacking) return;
+    
+    // Need at least 2 energy to attack
+    if (game.stats.energy < 2) return;
+    
+    game.player.isAttacking = true;
+    game.player.attackCooldown = 0.5;
+    
+    // Attacking costs trivial energy (2 energy)
+    game.stats.energy -= 2;
+    if (game.stats.energy < 0) game.stats.energy = 0;
+    
+    const originalZ = game.player.weapon.position.z;
+    game.player.weapon.position.z = -1.5; // Thrust forward
+    setTimeout(() => {
+        game.player.weapon.position.z = originalZ;
+        game.player.isAttacking = false;
+    }, 150);
+    
+    const attackRange = 2.5;
+    for (let enemy of game.enemies) {
+        const distance = game.player.position.distanceTo(enemy.position);
+        if (distance < attackRange && enemy.isActive) {
+            const damage = game.stats.attack;
+            enemy.health -= damage;
+            
+            // Hit effect on enemy body
+            if (enemy.bodyMaterial) {
+                const originalEmissive = enemy.bodyMaterial.emissive.getHex();
+                enemy.bodyMaterial.emissive.setHex(0xffff00);
+                enemy.bodyMaterial.emissiveIntensity = 1.0;
+                setTimeout(() => {
+                    if (enemy.bodyMaterial) {
+                        enemy.bodyMaterial.emissive.setHex(originalEmissive);
+                        enemy.bodyMaterial.emissiveIntensity = 0.5;
+                    }
+                }, 100);
+            }
+            
+            const direction = new THREE.Vector3()
+                .subVectors(enemy.position, game.player.position)
+                .normalize();
+            enemy.position.x += direction.x * 2;
+            enemy.position.z += direction.z * 2;
+        }
+    }
+}
+
+// Respawn player
+function respawnPlayer() {
+    game.stats.health = game.stats.maxHealth;
+    game.stats.energy = game.stats.maxEnergy;
+    game.player.position.set(0, 1, 0);
+}
+
+// Mouse handlers
+function onMouseMove(event) {
+    game.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    game.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+function onMouseClick() {
+    playerAttack();
+}
+
+// Window resize
+function onResize() {
+    game.camera.aspect = window.innerWidth / window.innerHeight;
+    game.camera.updateProjectionMatrix();
+    game.renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Update HUD
+function updateHUD() {
+    const healthPercent = (game.stats.health / game.stats.maxHealth) * 100;
+    const energyPercent = (game.stats.energy / game.stats.maxEnergy) * 100;
+    
+    document.getElementById('healthBar').style.width = healthPercent + '%';
+    document.getElementById('energyBar').style.width = energyPercent + '%';
+    document.getElementById('healthText').textContent = ` ${Math.floor(game.stats.health)}/${game.stats.maxHealth}`;
+    document.getElementById('energyText').textContent = ` ${Math.floor(game.stats.energy)}/${game.stats.maxEnergy}`;
+    document.getElementById('enemyCount').textContent = game.enemies.length;
+}
+
+// Animation loop
+let lastTime = 0;
+let frameCount = 0;
+let fpsTime = 0;
+
+function animate(currentTime = 0) {
+    requestAnimationFrame(animate);
+    
+    const delta = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+    
+    frameCount++;
+    fpsTime += delta;
+    if (fpsTime >= 1) {
+        document.getElementById('fps').textContent = frameCount;
+        frameCount = 0;
+        fpsTime = 0;
+    }
+    
+    updatePlayer(delta);
+    updateEnemies(delta);
+    updateHUD();
+    
+    game.renderer.render(game.scene, game.camera);
+}
+
+// Start game
+init();
+    </script>
+</body>
+</html>
