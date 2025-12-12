@@ -212,154 +212,201 @@ function init() {
     animate();
 }
 
-// Create player with detailed body parts
+// Create player with hierarchical body parts
 function createPlayer() {
     // Main container
     game.player = new THREE.Group();
     game.player.position.set(0, 0, 0);
-    
-    // Torso (body)
-    const torsoGeometry = new THREE.BoxGeometry(0.8, 1.0, 0.5);
-    const torsoMaterial = new THREE.MeshStandardMaterial({ 
+
+    // Materials
+    const torsoMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ff00,
         emissive: 0x00ff00,
         emissiveIntensity: 0.5,
         metalness: 0.3,
         roughness: 0.7
     });
+    const armMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00cc00,
+        emissive: 0x00cc00,
+        emissiveIntensity: 0.3
+    });
+    const legMaterial = new THREE.MeshStandardMaterial({
+        color: 0x009900,
+        emissive: 0x009900,
+        emissiveIntensity: 0.3
+    });
+    const footMaterial = new THREE.MeshStandardMaterial({
+        color: 0x006600,
+        emissive: 0x006600,
+        emissiveIntensity: 0.3
+    });
+
+    // TORSO (root of body hierarchy)
+    const torsoGeometry = new THREE.BoxGeometry(0.8, 1.0, 0.5);
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.position.y = 1.5;
     game.player.torso = torso;
     game.player.add(torso);
-    
-    // Head
+
+    // HEAD (child of torso)
     const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-    const headMaterial = new THREE.MeshStandardMaterial({ 
+    const headMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ff00,
         emissive: 0x00ff00,
         emissiveIntensity: 0.7
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 2.3;
+    head.position.y = 0.8; // Relative to torso
     game.player.head = head;
-    game.player.add(head);
-    
-    // Visor/eyes
+    torso.add(head);
+
+    // VISOR (child of head)
     const visorGeometry = new THREE.BoxGeometry(0.5, 0.15, 0.35);
-    const visorMaterial = new THREE.MeshStandardMaterial({ 
+    const visorMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
         emissiveIntensity: 1.0
     });
     const visor = new THREE.Mesh(visorGeometry, visorMaterial);
-    visor.position.set(0, 2.3, 0.3);
-    game.player.add(visor);
-    
-    // Right Upper Arm
+    visor.position.set(0, 0, 0.3); // Relative to head
+    game.player.visor = visor;
+    head.add(visor);
+
+    // RIGHT ARM HIERARCHY
+    const rightArmPivot = new THREE.Group();
+    rightArmPivot.position.set(0.5, 0.4, 0); // Shoulder position relative to torso
+    torso.add(rightArmPivot);
+    game.player.rightArmPivot = rightArmPivot;
+
     const upperArmGeometry = new THREE.BoxGeometry(0.2, 0.6, 0.2);
-    const armMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x00cc00,
-        emissive: 0x00cc00,
-        emissiveIntensity: 0.3
-    });
     const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    rightUpperArm.position.set(0.5, 1.7, 0);
+    rightUpperArm.position.y = -0.3; // Center below pivot
     game.player.rightUpperArm = rightUpperArm;
-    game.player.add(rightUpperArm);
-    
-    // Right Lower Arm
+    rightArmPivot.add(rightUpperArm);
+
+    const rightElbowPivot = new THREE.Group();
+    rightElbowPivot.position.y = -0.6; // Elbow at bottom of upper arm
+    rightUpperArm.add(rightElbowPivot);
+    game.player.rightElbowPivot = rightElbowPivot;
+
     const lowerArmGeometry = new THREE.BoxGeometry(0.18, 0.5, 0.18);
     const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    rightLowerArm.position.set(0.5, 1.0, 0);
+    rightLowerArm.position.y = -0.25; // Center below elbow
     game.player.rightLowerArm = rightLowerArm;
-    game.player.add(rightLowerArm);
-    
-    // Left Upper Arm
-    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    leftUpperArm.position.set(-0.5, 1.7, 0);
-    game.player.leftUpperArm = leftUpperArm;
-    game.player.add(leftUpperArm);
-    
-    // Left Lower Arm
-    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    leftLowerArm.position.set(-0.5, 1.0, 0);
-    game.player.leftLowerArm = leftLowerArm;
-    game.player.add(leftLowerArm);
-    
-    // Right Upper Leg
-    const upperLegGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.3);
-    const legMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x009900,
-        emissive: 0x009900,
-        emissiveIntensity: 0.3
-    });
-    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    rightUpperLeg.position.set(0.25, 0.7, 0);
-    game.player.rightUpperLeg = rightUpperLeg;
-    game.player.add(rightUpperLeg);
-    
-    // Right Lower Leg
-    const lowerLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
-    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    rightLowerLeg.position.set(0.25, 0.25, 0);
-    game.player.rightLowerLeg = rightLowerLeg;
-    game.player.add(rightLowerLeg);
-    
-    // Right Foot
-    const footGeometry = new THREE.BoxGeometry(0.28, 0.15, 0.4);
-    const footMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x006600,
-        emissive: 0x006600,
-        emissiveIntensity: 0.3
-    });
-    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    rightFoot.position.set(0.25, 0.08, 0.1);
-    game.player.rightFoot = rightFoot;
-    game.player.add(rightFoot);
-    
-    // Left Upper Leg
-    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    leftUpperLeg.position.set(-0.25, 0.7, 0);
-    game.player.leftUpperLeg = leftUpperLeg;
-    game.player.add(leftUpperLeg);
-    
-    // Left Lower Leg
-    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    leftLowerLeg.position.set(-0.25, 0.25, 0);
-    game.player.leftLowerLeg = leftLowerLeg;
-    game.player.add(leftLowerLeg);
-    
-    // Left Foot
-    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    leftFoot.position.set(-0.25, 0.08, 0.1);
-    game.player.leftFoot = leftFoot;
-    game.player.add(leftFoot);
-    
-    // Weapon on right arm
+    rightElbowPivot.add(rightLowerArm);
+
+    // WEAPON (child of right lower arm)
     const weaponHandle = new THREE.BoxGeometry(0.15, 0.15, 0.6);
-    const weaponHandleMaterial = new THREE.MeshStandardMaterial({ 
+    const weaponHandleMaterial = new THREE.MeshStandardMaterial({
         color: 0x888888,
         metalness: 0.5
     });
     const handle = new THREE.Mesh(weaponHandle, weaponHandleMaterial);
-    handle.position.set(0.5, 0.7, -0.3);
-    game.player.add(handle);
-    
+    handle.position.set(0, -0.25, -0.3); // At end of lower arm
+    rightLowerArm.add(handle);
+
     const weaponBlade = new THREE.BoxGeometry(0.3, 0.1, 1.2);
-    const weaponBladeMaterial = new THREE.MeshStandardMaterial({ 
+    const weaponBladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
         emissiveIntensity: 0.7,
         metalness: 0.8
     });
     game.player.weapon = new THREE.Mesh(weaponBlade, weaponBladeMaterial);
-    game.player.weapon.position.set(0.5, 0.7, -0.9);
-    game.player.add(game.player.weapon);
-    
+    game.player.weapon.position.set(0, -0.25, -0.9); // Extended from handle
+    rightLowerArm.add(game.player.weapon);
+
+    // LEFT ARM HIERARCHY
+    const leftArmPivot = new THREE.Group();
+    leftArmPivot.position.set(-0.5, 0.4, 0);
+    torso.add(leftArmPivot);
+    game.player.leftArmPivot = leftArmPivot;
+
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    leftUpperArm.position.y = -0.3;
+    game.player.leftUpperArm = leftUpperArm;
+    leftArmPivot.add(leftUpperArm);
+
+    const leftElbowPivot = new THREE.Group();
+    leftElbowPivot.position.y = -0.6;
+    leftUpperArm.add(leftElbowPivot);
+    game.player.leftElbowPivot = leftElbowPivot;
+
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
+    leftLowerArm.position.y = -0.25;
+    game.player.leftLowerArm = leftLowerArm;
+    leftElbowPivot.add(leftLowerArm);
+
+    // RIGHT LEG HIERARCHY
+    const rightLegPivot = new THREE.Group();
+    rightLegPivot.position.set(0.25, -0.5, 0); // Hip position relative to torso
+    torso.add(rightLegPivot);
+    game.player.rightLegPivot = rightLegPivot;
+
+    const upperLegGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.3);
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    rightUpperLeg.position.y = -0.3;
+    game.player.rightUpperLeg = rightUpperLeg;
+    rightLegPivot.add(rightUpperLeg);
+
+    const rightKneePivot = new THREE.Group();
+    rightKneePivot.position.y = -0.6;
+    rightUpperLeg.add(rightKneePivot);
+    game.player.rightKneePivot = rightKneePivot;
+
+    const lowerLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    rightLowerLeg.position.y = -0.25;
+    game.player.rightLowerLeg = rightLowerLeg;
+    rightKneePivot.add(rightLowerLeg);
+
+    const rightAnklePivot = new THREE.Group();
+    rightAnklePivot.position.y = -0.5;
+    rightLowerLeg.add(rightAnklePivot);
+    game.player.rightAnklePivot = rightAnklePivot;
+
+    const footGeometry = new THREE.BoxGeometry(0.28, 0.15, 0.4);
+    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    rightFoot.position.set(0, -0.08, 0.1);
+    game.player.rightFoot = rightFoot;
+    rightAnklePivot.add(rightFoot);
+
+    // LEFT LEG HIERARCHY
+    const leftLegPivot = new THREE.Group();
+    leftLegPivot.position.set(-0.25, -0.5, 0);
+    torso.add(leftLegPivot);
+    game.player.leftLegPivot = leftLegPivot;
+
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    leftUpperLeg.position.y = -0.3;
+    game.player.leftUpperLeg = leftUpperLeg;
+    leftLegPivot.add(leftUpperLeg);
+
+    const leftKneePivot = new THREE.Group();
+    leftKneePivot.position.y = -0.6;
+    leftUpperLeg.add(leftKneePivot);
+    game.player.leftKneePivot = leftKneePivot;
+
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    leftLowerLeg.position.y = -0.25;
+    game.player.leftLowerLeg = leftLowerLeg;
+    leftKneePivot.add(leftLowerLeg);
+
+    const leftAnklePivot = new THREE.Group();
+    leftAnklePivot.position.y = -0.5;
+    leftLowerLeg.add(leftAnklePivot);
+    game.player.leftAnklePivot = leftAnklePivot;
+
+    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    leftFoot.position.set(0, -0.08, 0.1);
+    game.player.leftFoot = leftFoot;
+    leftAnklePivot.add(leftFoot);
+
     // Animation state
     game.player.animTime = 0;
     game.player.walkCycle = 0;
-    
+
     // Player properties
     game.player.velocity = new THREE.Vector3();
     game.player.rotation.y = 0;
@@ -368,12 +415,12 @@ function createPlayer() {
     game.player.attackCooldown = 0;
     game.player.isDashing = false;
     game.player.dashTime = 0;
-    
+
     // Speed lines for dashing (initially hidden)
     game.player.speedLines = [];
     for (let i = 0; i < 5; i++) {
         const lineGeometry = new THREE.BoxGeometry(0.1, 0.1, 2);
-        const lineMaterial = new THREE.MeshBasicMaterial({ 
+        const lineMaterial = new THREE.MeshBasicMaterial({
             color: 0x00ffff,
             transparent: true,
             opacity: 0.6
@@ -383,18 +430,17 @@ function createPlayer() {
         game.player.speedLines.push(line);
         game.player.add(line);
     }
-    
+
     game.scene.add(game.player);
     console.log('Animated player added to scene');
 }
 
-// Spawn enemy with detailed body parts
+// Spawn enemy with hierarchical body parts
 function spawnEnemy() {
     // Main container
     const enemy = new THREE.Group();
 
-    // Torso (body)
-    const torsoGeometry = new THREE.BoxGeometry(0.7, 0.9, 0.4);
+    // Materials
     const torsoMaterial = new THREE.MeshStandardMaterial({
         color: 0xff0000,
         emissive: 0xff0000,
@@ -402,12 +448,30 @@ function spawnEnemy() {
         metalness: 0.3,
         roughness: 0.7
     });
+    const armMaterial = new THREE.MeshStandardMaterial({
+        color: 0xaa0000,
+        emissive: 0xaa0000,
+        emissiveIntensity: 0.3
+    });
+    const legMaterial = new THREE.MeshStandardMaterial({
+        color: 0x880000,
+        emissive: 0x880000,
+        emissiveIntensity: 0.3
+    });
+    const footMaterial = new THREE.MeshStandardMaterial({
+        color: 0x660000,
+        emissive: 0x660000,
+        emissiveIntensity: 0.3
+    });
+
+    // TORSO (root of body hierarchy)
+    const torsoGeometry = new THREE.BoxGeometry(0.7, 0.9, 0.4);
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.position.y = 1.3;
     enemy.torso = torso;
     enemy.add(torso);
 
-    // Head
+    // HEAD (child of torso)
     const headGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
     const headMaterial = new THREE.MeshStandardMaterial({
         color: 0xcc0000,
@@ -415,11 +479,11 @@ function spawnEnemy() {
         emissiveIntensity: 0.6
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 2.0;
+    head.position.y = 0.7; // Relative to torso
     enemy.head = head;
-    enemy.add(head);
+    torso.add(head);
 
-    // Glowing eye visor
+    // EYE VISOR (child of head)
     const eyeGeometry = new THREE.BoxGeometry(0.4, 0.12, 0.3);
     const eyeMaterial = new THREE.MeshStandardMaterial({
         color: 0xffff00,
@@ -427,91 +491,36 @@ function spawnEnemy() {
         emissiveIntensity: 1.0
     });
     const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye.position.set(0, 2.0, 0.25);
+    eye.position.set(0, 0, 0.25); // Relative to head
     enemy.eye = eye;
-    enemy.add(eye);
+    head.add(eye);
 
-    // Right Upper Arm
+    // RIGHT ARM HIERARCHY
+    // Right Upper Arm pivot (attached to torso shoulder)
+    const rightArmPivot = new THREE.Group();
+    rightArmPivot.position.set(0.45, 0.35, 0); // Shoulder position relative to torso
+    torso.add(rightArmPivot);
+    enemy.rightArmPivot = rightArmPivot;
+
     const upperArmGeometry = new THREE.BoxGeometry(0.18, 0.5, 0.18);
-    const armMaterial = new THREE.MeshStandardMaterial({
-        color: 0xaa0000,
-        emissive: 0xaa0000,
-        emissiveIntensity: 0.3
-    });
     const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    rightUpperArm.position.set(0.45, 1.5, 0);
+    rightUpperArm.position.y = -0.25; // Center of upper arm below pivot
     enemy.rightUpperArm = rightUpperArm;
-    enemy.add(rightUpperArm);
+    rightArmPivot.add(rightUpperArm);
 
-    // Right Lower Arm
+    // Right Lower Arm pivot (attached to upper arm elbow)
+    const rightElbowPivot = new THREE.Group();
+    rightElbowPivot.position.y = -0.5; // Elbow position at bottom of upper arm
+    rightUpperArm.add(rightElbowPivot);
+    enemy.rightElbowPivot = rightElbowPivot;
+
     const lowerArmGeometry = new THREE.BoxGeometry(0.15, 0.4, 0.15);
     const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    rightLowerArm.position.set(0.45, 1.0, 0);
+    rightLowerArm.position.y = -0.2; // Center of lower arm below pivot
     enemy.rightLowerArm = rightLowerArm;
-    enemy.add(rightLowerArm);
+    rightElbowPivot.add(rightLowerArm);
 
-    // Left Upper Arm
-    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    leftUpperArm.position.set(-0.45, 1.5, 0);
-    enemy.leftUpperArm = leftUpperArm;
-    enemy.add(leftUpperArm);
-
-    // Left Lower Arm
-    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    leftLowerArm.position.set(-0.45, 1.0, 0);
-    enemy.leftLowerArm = leftLowerArm;
-    enemy.add(leftLowerArm);
-
-    // Right Upper Leg
-    const upperLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
-    const legMaterial = new THREE.MeshStandardMaterial({
-        color: 0x880000,
-        emissive: 0x880000,
-        emissiveIntensity: 0.3
-    });
-    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    rightUpperLeg.position.set(0.2, 0.6, 0);
-    enemy.rightUpperLeg = rightUpperLeg;
-    enemy.add(rightUpperLeg);
-
-    // Right Lower Leg
-    const lowerLegGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.2);
-    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    rightLowerLeg.position.set(0.2, 0.2, 0);
-    enemy.rightLowerLeg = rightLowerLeg;
-    enemy.add(rightLowerLeg);
-
-    // Right Foot
-    const footGeometry = new THREE.BoxGeometry(0.22, 0.12, 0.35);
-    const footMaterial = new THREE.MeshStandardMaterial({
-        color: 0x660000,
-        emissive: 0x660000,
-        emissiveIntensity: 0.3
-    });
-    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    rightFoot.position.set(0.2, 0.06, 0.08);
-    enemy.rightFoot = rightFoot;
-    enemy.add(rightFoot);
-
-    // Left Upper Leg
-    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    leftUpperLeg.position.set(-0.2, 0.6, 0);
-    enemy.leftUpperLeg = leftUpperLeg;
-    enemy.add(leftUpperLeg);
-
-    // Left Lower Leg
-    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    leftLowerLeg.position.set(-0.2, 0.2, 0);
-    enemy.leftLowerLeg = leftLowerLeg;
-    enemy.add(leftLowerLeg);
-
-    // Left Foot
-    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    leftFoot.position.set(-0.2, 0.06, 0.08);
-    enemy.leftFoot = leftFoot;
-    enemy.add(leftFoot);
-
-    // Weapon (spike/claw on right arm)
+    // Weapon (spike on right hand)
     const weaponGeometry = new THREE.ConeGeometry(0.12, 0.5, 4);
     const weaponMaterial = new THREE.MeshStandardMaterial({
         color: 0xff6600,
@@ -520,10 +529,96 @@ function spawnEnemy() {
         metalness: 0.7
     });
     const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-    weapon.rotation.x = Math.PI / 2;
-    weapon.position.set(0.45, 0.7, -0.35);
+    weapon.rotation.x = Math.PI / 2; // Point forward
+    weapon.position.set(0, -0.2, -0.35); // At end of lower arm, pointing forward
     enemy.weapon = weapon;
-    enemy.add(weapon);
+    rightLowerArm.add(weapon);
+
+    // LEFT ARM HIERARCHY
+    const leftArmPivot = new THREE.Group();
+    leftArmPivot.position.set(-0.45, 0.35, 0);
+    torso.add(leftArmPivot);
+    enemy.leftArmPivot = leftArmPivot;
+
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    leftUpperArm.position.y = -0.25;
+    enemy.leftUpperArm = leftUpperArm;
+    leftArmPivot.add(leftUpperArm);
+
+    const leftElbowPivot = new THREE.Group();
+    leftElbowPivot.position.y = -0.5;
+    leftUpperArm.add(leftElbowPivot);
+    enemy.leftElbowPivot = leftElbowPivot;
+
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
+    leftLowerArm.position.y = -0.2;
+    enemy.leftLowerArm = leftLowerArm;
+    leftElbowPivot.add(leftLowerArm);
+
+    // RIGHT LEG HIERARCHY
+    const rightLegPivot = new THREE.Group();
+    rightLegPivot.position.set(0.2, -0.45, 0); // Hip position relative to torso
+    torso.add(rightLegPivot);
+    enemy.rightLegPivot = rightLegPivot;
+
+    const upperLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    rightUpperLeg.position.y = -0.25;
+    enemy.rightUpperLeg = rightUpperLeg;
+    rightLegPivot.add(rightUpperLeg);
+
+    const rightKneePivot = new THREE.Group();
+    rightKneePivot.position.y = -0.5;
+    rightUpperLeg.add(rightKneePivot);
+    enemy.rightKneePivot = rightKneePivot;
+
+    const lowerLegGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    rightLowerLeg.position.y = -0.2;
+    enemy.rightLowerLeg = rightLowerLeg;
+    rightKneePivot.add(rightLowerLeg);
+
+    const rightAnklePivot = new THREE.Group();
+    rightAnklePivot.position.y = -0.4;
+    rightLowerLeg.add(rightAnklePivot);
+    enemy.rightAnklePivot = rightAnklePivot;
+
+    const footGeometry = new THREE.BoxGeometry(0.22, 0.12, 0.35);
+    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    rightFoot.position.set(0, -0.06, 0.08);
+    enemy.rightFoot = rightFoot;
+    rightAnklePivot.add(rightFoot);
+
+    // LEFT LEG HIERARCHY
+    const leftLegPivot = new THREE.Group();
+    leftLegPivot.position.set(-0.2, -0.45, 0);
+    torso.add(leftLegPivot);
+    enemy.leftLegPivot = leftLegPivot;
+
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
+    leftUpperLeg.position.y = -0.25;
+    enemy.leftUpperLeg = leftUpperLeg;
+    leftLegPivot.add(leftUpperLeg);
+
+    const leftKneePivot = new THREE.Group();
+    leftKneePivot.position.y = -0.5;
+    leftUpperLeg.add(leftKneePivot);
+    enemy.leftKneePivot = leftKneePivot;
+
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
+    leftLowerLeg.position.y = -0.2;
+    enemy.leftLowerLeg = leftLowerLeg;
+    leftKneePivot.add(leftLowerLeg);
+
+    const leftAnklePivot = new THREE.Group();
+    leftAnklePivot.position.y = -0.4;
+    leftLowerLeg.add(leftAnklePivot);
+    enemy.leftAnklePivot = leftAnklePivot;
+
+    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
+    leftFoot.position.set(0, -0.06, 0.08);
+    enemy.leftFoot = leftFoot;
+    leftAnklePivot.add(leftFoot);
 
     // Random spawn position
     const angle = Math.random() * Math.PI * 2;
@@ -545,8 +640,8 @@ function spawnEnemy() {
     enemy.attackRange = 2;
     enemy.detectionRange = 15;
     enemy.isActive = true;
-    enemy.bodyMaterial = torsoMaterial; // Store reference for hit effects
-    enemy.animTime = Math.random() * 10; // Random start for varied animations
+    enemy.bodyMaterial = torsoMaterial;
+    enemy.animTime = Math.random() * 10;
     enemy.isWalking = false;
     enemy.isAttacking = false;
     enemy.attackAnimTime = 0;
@@ -675,38 +770,37 @@ function updatePlayer(delta) {
     animatePlayer(delta, isMovingForward, isMovingBackward, isRotating);
 }
 
-// Animate player body parts
+// Animate player body parts (using hierarchical pivots)
 function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     if (!game.player) return;
-    
+
     game.player.animTime += delta;
-    
+
     const isBlocking = game.abilities.block.active;
     const isDashing = game.player.isDashing;
     const isAttacking = game.player.isAttacking;
-    
-    // Reset positions
+
     const walkSpeed = 4;
-    const walkAmplitude = 0.3;
-    
+    const walkAmplitude = 0.4;
+
     // DASHING ANIMATION
     if (isDashing) {
-        // Arms stretched back
-        game.player.rightUpperArm.rotation.x = -1.5;
-        game.player.leftUpperArm.rotation.x = -1.5;
-        game.player.rightLowerArm.position.z = 0.3;
-        game.player.leftLowerArm.position.z = 0.3;
-        
+        // Arms stretched back (rotate shoulder pivots)
+        game.player.rightArmPivot.rotation.x = 1.2;
+        game.player.leftArmPivot.rotation.x = 1.2;
+        game.player.rightElbowPivot.rotation.x = 0.3;
+        game.player.leftElbowPivot.rotation.x = 0.3;
+
         // Torso leans forward
         game.player.torso.rotation.x = 0.3;
-        
+
         // Fast leg movement
         const dashCycle = Math.sin(game.player.animTime * 15);
-        game.player.rightUpperLeg.rotation.x = dashCycle * 0.8;
-        game.player.leftUpperLeg.rotation.x = -dashCycle * 0.8;
-        game.player.rightLowerLeg.rotation.x = Math.max(0, dashCycle) * 0.5;
-        game.player.leftLowerLeg.rotation.x = Math.max(0, -dashCycle) * 0.5;
-        
+        game.player.rightLegPivot.rotation.x = dashCycle * 0.8;
+        game.player.leftLegPivot.rotation.x = -dashCycle * 0.8;
+        game.player.rightKneePivot.rotation.x = Math.max(0, -dashCycle) * 0.6;
+        game.player.leftKneePivot.rotation.x = Math.max(0, dashCycle) * 0.6;
+
         // Speed lines
         for (let i = 0; i < game.player.speedLines.length; i++) {
             const line = game.player.speedLines[i];
@@ -717,110 +811,122 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
                 0.5 + i * 0.3
             );
         }
-        
+
         // If attacking while dashing, extend right arm forward
         if (isAttacking) {
-            game.player.rightUpperArm.rotation.x = -0.8;
-            game.player.rightLowerArm.position.z = -0.5;
+            game.player.rightArmPivot.rotation.x = -1.2;
+            game.player.rightElbowPivot.rotation.x = -0.3;
         }
     }
     // BLOCKING ANIMATION
     else if (isBlocking) {
-        // Arms in X formation
-        game.player.rightUpperArm.rotation.x = -0.5;
-        game.player.rightUpperArm.rotation.z = -0.8;
-        game.player.leftUpperArm.rotation.x = -0.5;
-        game.player.leftUpperArm.rotation.z = 0.8;
-        
-        game.player.rightLowerArm.position.set(0.3, 1.3, -0.2);
-        game.player.leftLowerArm.position.set(-0.3, 1.3, -0.2);
-        
+        // Arms in X formation (rotate shoulder and elbow pivots)
+        game.player.rightArmPivot.rotation.x = -0.8;
+        game.player.rightArmPivot.rotation.z = -0.5;
+        game.player.leftArmPivot.rotation.x = -0.8;
+        game.player.leftArmPivot.rotation.z = 0.5;
+        game.player.rightElbowPivot.rotation.x = -0.8;
+        game.player.leftElbowPivot.rotation.x = -0.8;
+
         // Legs still animate if walking
         if (isMovingForward || isMovingBackward) {
             const walkCycle = Math.sin(game.player.animTime * walkSpeed);
-            game.player.rightUpperLeg.rotation.x = walkCycle * walkAmplitude;
-            game.player.leftUpperLeg.rotation.x = -walkCycle * walkAmplitude;
+            game.player.rightLegPivot.rotation.x = walkCycle * walkAmplitude;
+            game.player.leftLegPivot.rotation.x = -walkCycle * walkAmplitude;
+            game.player.rightKneePivot.rotation.x = Math.max(0, -walkCycle) * 0.5;
+            game.player.leftKneePivot.rotation.x = Math.max(0, walkCycle) * 0.5;
         } else {
-            game.player.rightUpperLeg.rotation.x = 0;
-            game.player.leftUpperLeg.rotation.x = 0;
+            game.player.rightLegPivot.rotation.x = 0;
+            game.player.leftLegPivot.rotation.x = 0;
+            game.player.rightKneePivot.rotation.x = 0;
+            game.player.leftKneePivot.rotation.x = 0;
         }
-        
-        // Hide speed lines
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // ATTACKING ANIMATION
     else if (isAttacking) {
-        // Right arm extends forward
-        game.player.rightUpperArm.rotation.x = -1.2;
-        game.player.rightLowerArm.position.z = -0.6;
-        
+        // Right arm extends forward (rotate pivots)
+        game.player.rightArmPivot.rotation.x = -1.5;
+        game.player.rightElbowPivot.rotation.x = -0.2;
+
         // Torso leans forward
         game.player.torso.rotation.x = 0.2;
-        
+
         // Left arm stays back
-        game.player.leftUpperArm.rotation.x = 0.3;
-        
+        game.player.leftArmPivot.rotation.x = 0.3;
+        game.player.leftElbowPivot.rotation.x = 0;
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // MOONWALK (walking backward easter egg!)
     else if (isMovingBackward) {
-        // Smooth glide animation
         const moonwalkCycle = Math.sin(game.player.animTime * 5);
-        
+
         // Legs do Michael Jackson moonwalk
-        game.player.rightUpperLeg.rotation.x = moonwalkCycle * 0.4;
-        game.player.leftUpperLeg.rotation.x = -moonwalkCycle * 0.4;
-        game.player.rightLowerLeg.rotation.x = Math.abs(moonwalkCycle) * 0.3;
-        game.player.leftLowerLeg.rotation.x = Math.abs(moonwalkCycle) * 0.3;
-        
+        game.player.rightLegPivot.rotation.x = moonwalkCycle * 0.4;
+        game.player.leftLegPivot.rotation.x = -moonwalkCycle * 0.4;
+        game.player.rightKneePivot.rotation.x = Math.abs(moonwalkCycle) * 0.4;
+        game.player.leftKneePivot.rotation.x = Math.abs(moonwalkCycle) * 0.4;
+
         // Feet slide
-        game.player.rightFoot.rotation.x = -0.2;
-        game.player.leftFoot.rotation.x = -0.2;
-        
+        game.player.rightAnklePivot.rotation.x = -0.2;
+        game.player.leftAnklePivot.rotation.x = -0.2;
+
         // Arms swing smoothly
-        game.player.rightUpperArm.rotation.x = moonwalkCycle * 0.3;
-        game.player.leftUpperArm.rotation.x = -moonwalkCycle * 0.3;
-        
+        game.player.rightArmPivot.rotation.x = moonwalkCycle * 0.3;
+        game.player.leftArmPivot.rotation.x = -moonwalkCycle * 0.3;
+        game.player.rightElbowPivot.rotation.x = 0;
+        game.player.leftElbowPivot.rotation.x = 0;
+
         // Torso upright and smooth
         game.player.torso.rotation.x = 0;
         game.player.torso.position.y = 1.5 + Math.abs(moonwalkCycle) * 0.05;
-        
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // NORMAL WALKING
     else if (isMovingForward) {
         const walkCycle = Math.sin(game.player.animTime * walkSpeed);
-        
-        // Arms swing opposite to legs
-        game.player.rightUpperArm.rotation.x = -walkCycle * 0.5;
-        game.player.leftUpperArm.rotation.x = walkCycle * 0.5;
-        game.player.rightLowerArm.position.z = walkCycle * 0.1;
-        game.player.leftLowerArm.position.z = -walkCycle * 0.1;
-        
-        // Legs walk
-        game.player.rightUpperLeg.rotation.x = walkCycle * walkAmplitude;
-        game.player.leftUpperLeg.rotation.x = -walkCycle * walkAmplitude;
-        game.player.rightLowerLeg.rotation.x = Math.max(0, walkCycle) * 0.4;
-        game.player.leftLowerLeg.rotation.x = Math.max(0, -walkCycle) * 0.4;
-        
+
+        // Arms swing opposite to legs (rotate pivots)
+        game.player.rightArmPivot.rotation.x = -walkCycle * 0.5;
+        game.player.leftArmPivot.rotation.x = walkCycle * 0.5;
+        game.player.rightElbowPivot.rotation.x = -0.2;
+        game.player.leftElbowPivot.rotation.x = -0.2;
+
+        // Legs walk (rotate hip pivots)
+        game.player.rightLegPivot.rotation.x = walkCycle * walkAmplitude;
+        game.player.leftLegPivot.rotation.x = -walkCycle * walkAmplitude;
+        game.player.rightKneePivot.rotation.x = Math.max(0, -walkCycle) * 0.5;
+        game.player.leftKneePivot.rotation.x = Math.max(0, walkCycle) * 0.5;
+
         // Torso slight bob and sway
         game.player.torso.position.y = 1.5 + Math.abs(walkCycle) * 0.05;
         game.player.torso.rotation.z = walkCycle * 0.05;
         game.player.torso.rotation.x = 0;
-        
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // ROTATING (turning)
     else if (isRotating) {
         const turnCycle = Math.sin(game.player.animTime * 3);
-        
+
         // Slight lean in turn direction
         game.player.torso.rotation.z = turnCycle * 0.1;
-        
+
         // Arms sway slightly
-        game.player.rightUpperArm.rotation.x = turnCycle * 0.2;
-        game.player.leftUpperArm.rotation.x = -turnCycle * 0.2;
-        
+        game.player.rightArmPivot.rotation.x = turnCycle * 0.2;
+        game.player.leftArmPivot.rotation.x = -turnCycle * 0.2;
+        game.player.rightElbowPivot.rotation.x = 0;
+        game.player.leftElbowPivot.rotation.x = 0;
+
+        // Reset legs
+        game.player.rightLegPivot.rotation.x = 0;
+        game.player.leftLegPivot.rotation.x = 0;
+        game.player.rightKneePivot.rotation.x = 0;
+        game.player.leftKneePivot.rotation.x = 0;
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // IDLE
@@ -828,57 +934,57 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Gentle idle breathing
         const breathCycle = Math.sin(game.player.animTime * 2);
         game.player.torso.position.y = 1.5 + breathCycle * 0.02;
-        
+
         // Arms at rest
-        game.player.rightUpperArm.rotation.x = 0;
-        game.player.leftUpperArm.rotation.x = 0;
-        game.player.rightUpperArm.rotation.z = 0;
-        game.player.leftUpperArm.rotation.z = 0;
-        
+        game.player.rightArmPivot.rotation.x = 0;
+        game.player.leftArmPivot.rotation.x = 0;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = 0;
+        game.player.leftElbowPivot.rotation.x = 0;
+
         // Legs at rest
-        game.player.rightUpperLeg.rotation.x = 0;
-        game.player.leftUpperLeg.rotation.x = 0;
-        game.player.rightLowerLeg.rotation.x = 0;
-        game.player.leftLowerLeg.rotation.x = 0;
-        
-        // Reset positions
+        game.player.rightLegPivot.rotation.x = 0;
+        game.player.leftLegPivot.rotation.x = 0;
+        game.player.rightKneePivot.rotation.x = 0;
+        game.player.leftKneePivot.rotation.x = 0;
+        game.player.rightAnklePivot.rotation.x = 0;
+        game.player.leftAnklePivot.rotation.x = 0;
+
+        // Reset torso
         game.player.torso.rotation.x = 0;
         game.player.torso.rotation.z = 0;
-        game.player.rightLowerArm.position.set(0.5, 1.0, 0);
-        game.player.leftLowerArm.position.set(-0.5, 1.0, 0);
-        game.player.rightFoot.rotation.x = 0;
-        game.player.leftFoot.rotation.x = 0;
-        
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
 }
 
-// Animate enemy body parts
+// Animate enemy body parts (using hierarchical pivots)
 function animateEnemy(enemy, delta) {
     if (!enemy || !enemy.torso) return;
 
     enemy.animTime += delta;
 
     const walkSpeed = 6;
-    const walkAmplitude = 0.4;
+    const walkAmplitude = 0.5;
 
     // ATTACKING ANIMATION
     if (enemy.isAttacking) {
         enemy.attackAnimTime += delta;
 
-        // Right arm thrusts forward
-        enemy.rightUpperArm.rotation.x = -1.5;
-        enemy.rightLowerArm.position.z = -0.4;
+        // Right arm thrusts forward (rotate shoulder pivot)
+        enemy.rightArmPivot.rotation.x = -1.5;
+        enemy.rightElbowPivot.rotation.x = -0.3;
 
         // Torso leans forward aggressively
         enemy.torso.rotation.x = 0.3;
 
         // Left arm stays back for balance
-        enemy.leftUpperArm.rotation.x = 0.5;
+        enemy.leftArmPivot.rotation.x = 0.5;
 
         // Legs brace
-        enemy.rightUpperLeg.rotation.x = -0.2;
-        enemy.leftUpperLeg.rotation.x = 0.2;
+        enemy.rightLegPivot.rotation.x = -0.2;
+        enemy.leftLegPivot.rotation.x = 0.2;
 
         // Eye pulses bright during attack
         if (enemy.eye) {
@@ -895,25 +1001,24 @@ function animateEnemy(enemy, delta) {
     else if (enemy.isWalking) {
         const walkCycle = Math.sin(enemy.animTime * walkSpeed);
 
-        // Arms swing opposite to legs
-        enemy.rightUpperArm.rotation.x = -walkCycle * 0.4;
-        enemy.leftUpperArm.rotation.x = walkCycle * 0.4;
-        enemy.rightLowerArm.position.z = walkCycle * 0.08;
-        enemy.leftLowerArm.position.z = -walkCycle * 0.08;
+        // Arms swing opposite to legs (rotate pivots)
+        enemy.rightArmPivot.rotation.x = -walkCycle * 0.5;
+        enemy.leftArmPivot.rotation.x = walkCycle * 0.5;
+        // Slight elbow bend while walking
+        enemy.rightElbowPivot.rotation.x = -0.2;
+        enemy.leftElbowPivot.rotation.x = -0.2;
 
-        // Legs walk
-        enemy.rightUpperLeg.rotation.x = walkCycle * walkAmplitude;
-        enemy.leftUpperLeg.rotation.x = -walkCycle * walkAmplitude;
-        enemy.rightLowerLeg.rotation.x = Math.max(0, walkCycle) * 0.3;
-        enemy.leftLowerLeg.rotation.x = Math.max(0, -walkCycle) * 0.3;
+        // Legs walk (rotate hip pivots)
+        enemy.rightLegPivot.rotation.x = walkCycle * walkAmplitude;
+        enemy.leftLegPivot.rotation.x = -walkCycle * walkAmplitude;
+        // Knee bends when leg swings back
+        enemy.rightKneePivot.rotation.x = Math.max(0, -walkCycle) * 0.6;
+        enemy.leftKneePivot.rotation.x = Math.max(0, walkCycle) * 0.6;
 
         // Torso bob and sway
         enemy.torso.position.y = 1.3 + Math.abs(walkCycle) * 0.04;
         enemy.torso.rotation.z = walkCycle * 0.04;
-        enemy.torso.rotation.x = 0.1; // Slight forward lean while walking
-
-        // Head bobs slightly
-        enemy.head.position.y = 2.0 + Math.abs(walkCycle) * 0.02;
+        enemy.torso.rotation.x = 0.1;
 
         // Eye normal intensity
         if (enemy.eye) {
@@ -931,20 +1036,19 @@ function animateEnemy(enemy, delta) {
         enemy.torso.rotation.z = 0;
 
         // Arms at rest with slight sway
-        enemy.rightUpperArm.rotation.x = breathCycle * 0.05;
-        enemy.leftUpperArm.rotation.x = -breathCycle * 0.05;
-        enemy.rightLowerArm.position.z = 0;
-        enemy.leftLowerArm.position.z = 0;
+        enemy.rightArmPivot.rotation.x = breathCycle * 0.05;
+        enemy.leftArmPivot.rotation.x = -breathCycle * 0.05;
+        enemy.rightElbowPivot.rotation.x = 0;
+        enemy.leftElbowPivot.rotation.x = 0;
 
         // Legs at rest
-        enemy.rightUpperLeg.rotation.x = 0;
-        enemy.leftUpperLeg.rotation.x = 0;
-        enemy.rightLowerLeg.rotation.x = 0;
-        enemy.leftLowerLeg.rotation.x = 0;
+        enemy.rightLegPivot.rotation.x = 0;
+        enemy.leftLegPivot.rotation.x = 0;
+        enemy.rightKneePivot.rotation.x = 0;
+        enemy.leftKneePivot.rotation.x = 0;
 
         // Head looks around slightly
         enemy.head.rotation.y = lookCycle * 0.2;
-        enemy.head.position.y = 2.0;
 
         // Eye pulses gently
         if (enemy.eye) {
