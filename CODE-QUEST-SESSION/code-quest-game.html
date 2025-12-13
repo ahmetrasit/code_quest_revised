@@ -416,11 +416,38 @@ function createPlayer() {
     game.player.leftLowerArm = leftLowerArm;
     leftElbowPivot.add(leftLowerArm);
 
-    // Hand/fist for left arm
-    const fistGeometry = new THREE.IcosahedronGeometry(0.08, 0);
-    const leftFist = new THREE.Mesh(fistGeometry, accentMaterial.clone());
-    leftFist.position.y = -0.28;
-    leftLowerArm.add(leftFist);
+    // LEFT WRIST PIVOT
+    const leftWristPivot = new THREE.Group();
+    leftWristPivot.position.y = -0.25;
+    leftLowerArm.add(leftWristPivot);
+    game.player.leftWristPivot = leftWristPivot;
+
+    // Left hand
+    const leftHand = new THREE.Mesh(handGeometry.clone(), handMaterial.clone());
+    leftHand.position.y = -0.08;
+    leftWristPivot.add(leftHand);
+
+    // LEFT SWORD - mirror of right sword
+    const leftWeaponGroup = new THREE.Group();
+    leftWeaponGroup.position.y = -0.08;
+
+    const leftHandle = new THREE.Mesh(handleGeometry.clone(), handleMaterial.clone());
+    leftHandle.rotation.x = Math.PI / 2;
+    leftHandle.position.z = -0.1;
+    leftWeaponGroup.add(leftHandle);
+
+    const leftGuard = new THREE.Mesh(guardGeometry.clone(), guardMaterial.clone());
+    leftGuard.scale.set(1.5, 0.3, 0.4);
+    leftGuard.position.z = -0.22;
+    leftWeaponGroup.add(leftGuard);
+
+    const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
+    leftBlade.rotation.x = -Math.PI / 2;
+    leftBlade.position.z = -0.67;
+    leftWeaponGroup.add(leftBlade);
+
+    game.player.leftWeapon = leftWeaponGroup;
+    leftWristPivot.add(leftWeaponGroup);
 
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
@@ -1019,63 +1046,77 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             );
         }
 
-        // If attacking while dashing, use piston lunge
+        // If attacking while dashing, dual thrust forward
         if (isAttacking) {
+            // Both arms thrust forward
             game.player.rightArmPivot.rotation.x = Math.PI / 2;
+            game.player.rightArmPivot.rotation.z = 0.3;
             game.player.rightElbowPivot.rotation.x = 0;
-            // Counter-rotate wrist so sword stays pointing forward
-            game.player.rightWristPivot.rotation.x = -Math.PI / 2;
+            game.player.rightWristPivot.rotation.x = 0;
+
+            game.player.leftArmPivot.rotation.x = Math.PI / 2;
+            game.player.leftArmPivot.rotation.z = -0.3;
+            game.player.leftElbowPivot.rotation.x = 0;
+            game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Horizontal sword swing in front of player
+    // ATTACKING ANIMATION - Dual swords slash inward (crossing pattern)
     else if (isAttacking) {
-        const swingDir = game.player.swingDirection;
         const swingProg = game.player.swingProgress;
+        const pattern = game.player.swingDirection; // 1 or -1 for alternating pattern
 
-        // Swing arc: sweeps horizontally in front of player
-        // swingProg 0->1 maps to starting position -> ending position
-        const swingAngle = (-1.0 + swingProg * 2.0) * swingDir;
+        // Eased swing progress for more natural motion
+        const eased = Math.sin(swingProg * Math.PI); // Smooth acceleration/deceleration
 
-        // Arm extended forward, sweeping horizontally via shoulder Y rotation
-        game.player.rightArmPivot.rotation.x = Math.PI / 2.5; // Arm forward (pointing toward -Z)
-        game.player.rightArmPivot.rotation.y = swingAngle; // Horizontal sweep!
-        game.player.rightArmPivot.rotation.z = 0;
+        // Arms start wide, slash inward to cross in front
+        // Pattern alternates: 1 = right high/left low, -1 = left high/right low
 
-        // Elbow straight for reach
-        game.player.rightElbowPivot.rotation.x = 0;
+        // RIGHT ARM - natural slash motion
+        // Shoulder: raises up and forward, then sweeps inward
+        game.player.rightArmPivot.rotation.x = 0.8 + eased * 0.4; // Forward and down through swing
+        game.player.rightArmPivot.rotation.z = (0.8 - swingProg * 1.6) * pattern; // Wide to inward
+        game.player.rightArmPivot.rotation.y = -0.3 * eased; // Slight inward rotation
 
-        // Wrist keeps sword level
-        game.player.rightWristPivot.rotation.x = 0;
-        game.player.rightWristPivot.rotation.y = 0;
-        game.player.rightWristPivot.rotation.z = 0;
+        // Elbow: starts bent, extends through swing
+        game.player.rightElbowPivot.rotation.x = -0.6 + swingProg * 0.4;
 
-        // Torso rotates with swing for power
-        game.player.torso.rotation.y = swingAngle * 0.4;
-        game.player.torso.rotation.x = 0;
+        // Wrist: flicks at end of swing for snap
+        game.player.rightWristPivot.rotation.x = -0.3 * eased;
+        game.player.rightWristPivot.rotation.z = 0.4 * eased * pattern;
 
-        // Left arm counters
-        game.player.leftArmPivot.rotation.x = -0.2;
-        game.player.leftArmPivot.rotation.y = -swingAngle * 0.3;
-        game.player.leftElbowPivot.rotation.x = -0.4;
+        // LEFT ARM - mirrors but offset in pattern
+        game.player.leftArmPivot.rotation.x = 0.8 + eased * 0.4;
+        game.player.leftArmPivot.rotation.z = (-0.8 + swingProg * 1.6) * pattern; // Opposite direction
+        game.player.leftArmPivot.rotation.y = 0.3 * eased;
 
-        // Legs planted
-        game.player.rightLegPivot.rotation.x = 0;
-        game.player.leftLegPivot.rotation.x = 0;
-        game.player.rightKneePivot.rotation.x = 0.1;
-        game.player.leftKneePivot.rotation.x = 0.1;
+        game.player.leftElbowPivot.rotation.x = -0.6 + swingProg * 0.4;
+
+        game.player.leftWristPivot.rotation.x = -0.3 * eased;
+        game.player.leftWristPivot.rotation.z = -0.4 * eased * pattern;
+
+        // Torso leans into the slash
+        game.player.torso.rotation.x = 0.15 * eased;
+        game.player.torso.rotation.y = 0;
+
+        // Legs brace - slight lunge forward
+        game.player.rightLegPivot.rotation.x = 0.2 * eased;
+        game.player.leftLegPivot.rotation.x = -0.1 * eased;
+        game.player.rightKneePivot.rotation.x = 0.15 * eased;
+        game.player.leftKneePivot.rotation.x = 0.1 * eased;
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // BLOCKING ANIMATION
+    // BLOCKING ANIMATION - Dual swords crossed in X formation
     else if (isBlocking) {
-        // Arms in X formation in FRONT of body (positive X = forward)
-        game.player.rightArmPivot.rotation.x = 0.8;   // Forward
-        game.player.rightArmPivot.rotation.z = -0.3;  // Slight outward tilt
-        game.player.leftArmPivot.rotation.x = 0.8;    // Forward
-        game.player.leftArmPivot.rotation.z = 0.3;    // Slight outward tilt
-        game.player.rightElbowPivot.rotation.x = 0.8; // Bend toward body
-        game.player.leftElbowPivot.rotation.x = 0.8;
-        game.player.rightWristPivot.rotation.x = 0;   // Wrist normal
+        // Arms cross in front forming X with swords
+        game.player.rightArmPivot.rotation.x = 0.9;   // Forward
+        game.player.rightArmPivot.rotation.z = -0.5;  // Cross toward center
+        game.player.leftArmPivot.rotation.x = 0.9;    // Forward
+        game.player.leftArmPivot.rotation.z = 0.5;    // Cross toward center
+        game.player.rightElbowPivot.rotation.x = -0.4; // Slight bend
+        game.player.leftElbowPivot.rotation.x = -0.4;
+        game.player.rightWristPivot.rotation.x = 0;
+        game.player.leftWristPivot.rotation.x = 0;
 
         // Legs still animate if walking
         if (isMovingForward || isMovingBackward) {
