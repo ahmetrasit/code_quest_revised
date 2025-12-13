@@ -543,8 +543,13 @@ function createPlayer() {
     game.player.health = game.stats.health;
     game.player.isAttacking = false;
     game.player.attackCooldown = 0;
-    game.player.rightArmCooldown = 0; // Separate cooldown for right arm
-    game.player.leftArmCooldown = 0;  // Separate cooldown for left arm
+    // Separate state for each arm - allows simultaneous attacks!
+    game.player.rightArmCooldown = 0;
+    game.player.leftArmCooldown = 0;
+    game.player.isAttackingRight = false;
+    game.player.isAttackingLeft = false;
+    game.player.rightSwingProgress = 0;
+    game.player.leftSwingProgress = 0;
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -1066,78 +1071,83 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Alternating forward punches
+    // ATTACKING ANIMATION - Both arms can punch simultaneously!
     else if (isAttacking) {
-        const swingProg = game.player.swingProgress;
-        const isRightHand = game.player.swingDirection === 1;
+        const rightProg = game.player.rightSwingProgress;
+        const leftProg = game.player.leftSwingProgress;
+        const isAttackingRight = game.player.isAttackingRight;
+        const isAttackingLeft = game.player.isAttackingLeft;
 
-        // Punch timing - quick extend, hold briefly
-        const punch = Math.min(1, swingProg / 0.8);
-        const punchExtend = punch < 0.5 ? punch * 2 : 1; // Quick extend
-        const punchHold = punch >= 0.5 ? 1 : punch * 2; // Hold at end
+        // Right arm punch calculation
+        const rightPunch = Math.min(1, rightProg / 0.8);
+        const rightExtend = rightPunch < 0.5 ? rightPunch * 2 : 1;
 
-        // Store for next attack
-        game.player.lastAttackHand = isRightHand ? 'right' : 'left';
-        game.player.lastAttackSlash = punch;
+        // Left arm punch calculation
+        const leftPunch = Math.min(1, leftProg / 0.8);
+        const leftExtend = leftPunch < 0.5 ? leftPunch * 2 : 1;
 
-        if (isRightHand) {
-            // RIGHT ARM - Forward punch
-            game.player.rightArmPivot.rotation.x = 0.3 + punchExtend * 1.2; // Arm extends forward
+        // RIGHT ARM - punching or ready
+        if (isAttackingRight) {
+            game.player.rightArmPivot.rotation.x = 0.3 + rightExtend * 1.2;
             game.player.rightArmPivot.rotation.z = -0.2;
             game.player.rightArmPivot.rotation.y = 0;
-            game.player.rightElbowPivot.rotation.x = -0.3 + punchExtend * 0.3; // Arm straightens
+            game.player.rightElbowPivot.rotation.x = 2.0 - rightExtend * 2.0;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            // Left arm ready position
-            game.player.leftArmPivot.rotation.x = 0.5;
-            game.player.leftArmPivot.rotation.z = 0.2;
-            game.player.leftElbowPivot.rotation.x = -0.8;
-            game.player.leftWristPivot.rotation.set(0, 0, 0);
-
-            // Torso twists into punch
-            game.player.torso.rotation.y = -0.2 * punchExtend;
-
-            // Fist trail - visible during punch
             if (game.player.rightFistTrail) {
-                const trailOpacity = punchExtend * (1 - punch * 0.5) * 0.8;
+                const trailOpacity = rightExtend * (1 - rightPunch * 0.5) * 0.8;
                 game.player.rightFistTrail.material.opacity = trailOpacity;
             }
-            if (game.player.leftFistTrail) {
-                game.player.leftFistTrail.material.opacity = 0;
-            }
-
         } else {
-            // LEFT ARM - Forward punch
-            game.player.leftArmPivot.rotation.x = 0.3 + punchExtend * 1.2;
-            game.player.leftArmPivot.rotation.z = 0.2;
-            game.player.leftArmPivot.rotation.y = 0;
-            game.player.leftElbowPivot.rotation.x = -0.3 + punchExtend * 0.3;
-            game.player.leftWristPivot.rotation.set(0, 0, 0);
-
-            // Right arm ready position
-            game.player.rightArmPivot.rotation.x = 0.5;
-            game.player.rightArmPivot.rotation.z = -0.2;
-            game.player.rightElbowPivot.rotation.x = -0.8;
+            // Ready position
+            game.player.rightArmPivot.rotation.x = 0.4;
+            game.player.rightArmPivot.rotation.z = 0;
+            game.player.rightElbowPivot.rotation.x = 2.0;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
-
-            // Torso twists into punch
-            game.player.torso.rotation.y = 0.2 * punchExtend;
-
-            // Fist trail - visible during punch
-            if (game.player.leftFistTrail) {
-                const trailOpacity = punchExtend * (1 - punch * 0.5) * 0.8;
-                game.player.leftFistTrail.material.opacity = trailOpacity;
-            }
             if (game.player.rightFistTrail) {
                 game.player.rightFistTrail.material.opacity = 0;
             }
         }
 
-        game.player.torso.rotation.x = 0.1 * punchExtend;
+        // LEFT ARM - punching or ready
+        if (isAttackingLeft) {
+            game.player.leftArmPivot.rotation.x = 0.3 + leftExtend * 1.2;
+            game.player.leftArmPivot.rotation.z = 0.2;
+            game.player.leftArmPivot.rotation.y = 0;
+            game.player.leftElbowPivot.rotation.x = 2.0 - leftExtend * 2.0;
+            game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-        // Legs stable, slight lunge
-        game.player.rightLegPivot.rotation.x = isRightHand ? 0.15 * punchExtend : 0;
-        game.player.leftLegPivot.rotation.x = isRightHand ? 0 : 0.15 * punchExtend;
+            if (game.player.leftFistTrail) {
+                const trailOpacity = leftExtend * (1 - leftPunch * 0.5) * 0.8;
+                game.player.leftFistTrail.material.opacity = trailOpacity;
+            }
+        } else {
+            // Ready position
+            game.player.leftArmPivot.rotation.x = 0.4;
+            game.player.leftArmPivot.rotation.z = 0;
+            game.player.leftElbowPivot.rotation.x = 2.0;
+            game.player.leftWristPivot.rotation.set(0, 0, 0);
+            if (game.player.leftFistTrail) {
+                game.player.leftFistTrail.material.opacity = 0;
+            }
+        }
+
+        // Torso twist based on which arm(s) are punching
+        if (isAttackingRight && isAttackingLeft) {
+            game.player.torso.rotation.y = 0; // Both punching - stay centered
+        } else if (isAttackingRight) {
+            game.player.torso.rotation.y = -0.2 * rightExtend;
+        } else if (isAttackingLeft) {
+            game.player.torso.rotation.y = 0.2 * leftExtend;
+        }
+
+        // Torso leans forward when punching
+        const maxExtend = Math.max(rightExtend, leftExtend);
+        game.player.torso.rotation.x = 0.1 * maxExtend;
+
+        // Legs stable, slight lunge based on which arm(s) are punching
+        game.player.rightLegPivot.rotation.x = isAttackingRight ? 0.15 * rightExtend : 0;
+        game.player.leftLegPivot.rotation.x = isAttackingLeft ? 0.15 * leftExtend : 0;
         game.player.rightKneePivot.rotation.x = 0.1;
         game.player.leftKneePivot.rotation.x = 0.1;
 
@@ -1495,36 +1505,55 @@ function playerAttack(useRightArm) {
     // Need at least 2 energy to attack
     if (game.stats.energy < 2) return;
 
-    // Set the attack direction based on which arm
-    game.player.swingDirection = useRightArm ? 1 : -1;
-    game.player.isAttacking = true;
-
-    // Set cooldown for the specific arm (0.5s per arm, but can alternate!)
+    // Set attack state for specific arm (allows both to attack simultaneously!)
     if (useRightArm) {
+        game.player.isAttackingRight = true;
         game.player.rightArmCooldown = 0.5;
+        game.player.rightSwingProgress = 0;
     } else {
+        game.player.isAttackingLeft = true;
         game.player.leftArmCooldown = 0.5;
+        game.player.leftSwingProgress = 0;
     }
+
+    // Legacy flag for compatibility
+    game.player.isAttacking = true;
+    game.player.swingDirection = useRightArm ? 1 : -1;
 
     // Attacking costs trivial energy (2 energy)
     game.stats.energy -= 2;
     if (game.stats.energy < 0) game.stats.energy = 0;
 
     // Animate the swing over time (0 to 1 over 250ms)
-    game.player.swingProgress = 0;
     const swingDuration = 250;
     const swingStart = Date.now();
 
     function animateSwing() {
         const elapsed = Date.now() - swingStart;
-        game.player.swingProgress = Math.min(1, elapsed / swingDuration);
+        const progress = Math.min(1, elapsed / swingDuration);
+
+        // Update the specific arm's progress
+        if (useRightArm) {
+            game.player.rightSwingProgress = progress;
+        } else {
+            game.player.leftSwingProgress = progress;
+        }
 
         if (elapsed < swingDuration) {
             requestAnimationFrame(animateSwing);
         } else {
-            // Swing complete
-            game.player.isAttacking = false;
-            game.player.swingProgress = 0;
+            // Swing complete for this arm
+            if (useRightArm) {
+                game.player.isAttackingRight = false;
+                game.player.rightSwingProgress = 0;
+            } else {
+                game.player.isAttackingLeft = false;
+                game.player.leftSwingProgress = 0;
+            }
+            // Only clear isAttacking if both arms are done
+            if (!game.player.isAttackingRight && !game.player.isAttackingLeft) {
+                game.player.isAttacking = false;
+            }
         }
     }
     animateSwing();
