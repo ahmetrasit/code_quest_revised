@@ -1060,7 +1060,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Fast slash with ~23° downward angle
+    // ATTACKING ANIMATION - Fast slash from top, angling down
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
@@ -1074,14 +1074,14 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         const snap = Math.pow(snapRaw, 2);
 
         if (isRightHand) {
-            // RIGHT ARM - Slash with 23° downward angle
+            // RIGHT ARM - Starts from top, slashes down
 
-            // Arm sweeps horizontally + angles down ~0.4 rad (23°)
-            game.player.rightArmPivot.rotation.x = 1.1 + slash * 0.4; // Angles down during slash
+            // Arm starts raised, comes down during slash
+            game.player.rightArmPivot.rotation.x = 0.4 + slash * 0.9; // Top -> down
             game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.4;
             game.player.rightArmPivot.rotation.y = 0;
 
-            game.player.rightElbowPivot.rotation.x = -0.3;
+            game.player.rightElbowPivot.rotation.x = -0.5 + slash * 0.3;
 
             game.player.rightWristPivot.rotation.x = 0;
             game.player.rightWristPivot.rotation.y = 0.5 - slash * 0.8 - snap * 0.5;
@@ -1096,13 +1096,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.torso.rotation.y = -0.4 + slash * 0.6;
 
         } else {
-            // LEFT ARM - Slash with 23° downward angle
+            // LEFT ARM - Starts from top, slashes down
 
-            game.player.leftArmPivot.rotation.x = 1.1 + slash * 0.4; // Angles down during slash
+            game.player.leftArmPivot.rotation.x = 0.4 + slash * 0.9; // Top -> down
             game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.4;
             game.player.leftArmPivot.rotation.y = 0;
 
-            game.player.leftElbowPivot.rotation.x = -0.3;
+            game.player.leftElbowPivot.rotation.x = -0.5 + slash * 0.3;
 
             game.player.leftWristPivot.rotation.x = 0;
             game.player.leftWristPivot.rotation.y = -0.5 + slash * 0.8 + snap * 0.5;
