@@ -1590,24 +1590,132 @@ function playerAttack(useRightArm) {
             const damage = game.stats.attack;
             enemy.health -= damage;
 
-            // Hit effect on enemy body
-            if (enemy.bodyMaterial) {
-                const originalEmissive = enemy.bodyMaterial.emissive.getHex();
-                enemy.bodyMaterial.emissive.setHex(0xffff00);
-                enemy.bodyMaterial.emissiveIntensity = 1.0;
-                setTimeout(() => {
-                    if (enemy.bodyMaterial) {
-                        enemy.bodyMaterial.emissive.setHex(originalEmissive);
-                        enemy.bodyMaterial.emissiveIntensity = 0.5;
-                    }
-                }, 100);
-            }
+            // Electric shock effect and chain lightning!
+            applyElectricShock(enemy, damage, [enemy]);
 
             // Knockback in the direction of the hit
             enemy.position.x += toEnemy.x * 2;
             enemy.position.z += toEnemy.z * 2;
         }
     }
+}
+
+// Apply electric shock effect to enemy and chain to nearby enemies
+function applyElectricShock(enemy, baseDamage, alreadyHit, chainDepth = 0) {
+    const maxChainDepth = 4; // Maximum chain jumps
+    const chainRange = 3.5; // Range to find next target
+    const chainDamageMultiplier = 0.5; // Each chain does 50% of previous damage
+
+    // Electric glow effect on enemy
+    if (enemy.bodyMaterial) {
+        const originalColor = enemy.bodyMaterial.color.getHex();
+        const originalEmissive = enemy.bodyMaterial.emissive.getHex();
+
+        // Bright cyan electric glow
+        enemy.bodyMaterial.emissive.setHex(0x00ffff);
+        enemy.bodyMaterial.emissiveIntensity = 2.0;
+        enemy.bodyMaterial.color.setHex(0xaaffff);
+
+        // Flicker effect
+        let flickerCount = 0;
+        const flickerInterval = setInterval(() => {
+            flickerCount++;
+            enemy.bodyMaterial.emissiveIntensity = flickerCount % 2 === 0 ? 2.0 : 0.5;
+            if (flickerCount >= 6) {
+                clearInterval(flickerInterval);
+                if (enemy.bodyMaterial) {
+                    enemy.bodyMaterial.emissive.setHex(originalEmissive);
+                    enemy.bodyMaterial.emissiveIntensity = 0.5;
+                    enemy.bodyMaterial.color.setHex(originalColor);
+                }
+            }
+        }, 50);
+    }
+
+    // Create lightning bolt visual to this enemy (if chained)
+    if (chainDepth > 0 && alreadyHit.length >= 2) {
+        const prevEnemy = alreadyHit[alreadyHit.length - 2];
+        createLightningBolt(prevEnemy.position, enemy.position);
+    }
+
+    // Try to chain to nearby enemies
+    if (chainDepth < maxChainDepth) {
+        let closestEnemy = null;
+        let closestDist = chainRange;
+
+        for (let otherEnemy of game.enemies) {
+            if (!otherEnemy.isActive) continue;
+            if (alreadyHit.includes(otherEnemy)) continue;
+
+            const dist = enemy.position.distanceTo(otherEnemy.position);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestEnemy = otherEnemy;
+            }
+        }
+
+        // Chain to closest enemy
+        if (closestEnemy) {
+            const chainDamage = Math.floor(baseDamage * chainDamageMultiplier);
+            if (chainDamage > 0) {
+                alreadyHit.push(closestEnemy);
+                closestEnemy.health -= chainDamage;
+
+                // Small delay for visual chain effect
+                setTimeout(() => {
+                    applyElectricShock(closestEnemy, chainDamage, alreadyHit, chainDepth + 1);
+                }, 80);
+            }
+        }
+    }
+}
+
+// Create a visual lightning bolt between two points
+function createLightningBolt(startPos, endPos) {
+    const points = [];
+    const segments = 5;
+
+    for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const x = startPos.x + (endPos.x - startPos.x) * t;
+        const y = (startPos.y + 1) + (endPos.y + 1 - startPos.y - 1) * t;
+        const z = startPos.z + (endPos.z - startPos.z) * t;
+
+        // Add randomness to middle points for jagged lightning look
+        if (i > 0 && i < segments) {
+            points.push(new THREE.Vector3(
+                x + (Math.random() - 0.5) * 0.5,
+                y + (Math.random() - 0.5) * 0.3,
+                z + (Math.random() - 0.5) * 0.5
+            ));
+        } else {
+            points.push(new THREE.Vector3(x, y, z));
+        }
+    }
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending
+    });
+
+    const lightning = new THREE.Line(geometry, material);
+    game.scene.add(lightning);
+
+    // Fade out and remove
+    let opacity = 1.0;
+    const fadeInterval = setInterval(() => {
+        opacity -= 0.15;
+        material.opacity = opacity;
+        if (opacity <= 0) {
+            clearInterval(fadeInterval);
+            game.scene.remove(lightning);
+            geometry.dispose();
+            material.dispose();
+        }
+    }, 30);
 }
 
 // Respawn player
