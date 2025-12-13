@@ -326,14 +326,17 @@ function createPlayer() {
     game.player.rightLowerArm = rightLowerArm;
     rightElbowPivot.add(rightLowerArm);
 
-    // WRIST PIVOT
+    // WRIST PIVOT - at the end of lower arm
     const rightWristPivot = new THREE.Group();
     rightWristPivot.position.y = -0.25;
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // Hand/fist holding the sword
-    const handGeometry = new THREE.IcosahedronGeometry(0.07, 0);
+    // WEAPON GROUP - sword held in hand, extending downward from wrist
+    const weaponGroup = new THREE.Group();
+
+    // Hand/fist gripping the sword handle
+    const handGeometry = new THREE.IcosahedronGeometry(0.08, 0);
     const handMaterial = new THREE.MeshStandardMaterial({
         color: 0x3a7bc8,
         flatShading: true,
@@ -341,15 +344,11 @@ function createPlayer() {
         roughness: 0.8
     });
     const rightHand = new THREE.Mesh(handGeometry, handMaterial);
-    rightHand.position.y = -0.08;
-    rightWristPivot.add(rightHand);
+    rightHand.position.y = -0.1;
+    weaponGroup.add(rightHand);
 
-    // WEAPON - Low poly crystal sword (held in hand)
-    const weaponGroup = new THREE.Group();
-    weaponGroup.position.set(0, -0.08, 0); // Position at hand
-
-    // Handle - octagonal cylinder
-    const handleGeometry = new THREE.CylinderGeometry(0.035, 0.04, 0.25, 6);
+    // Handle - inside the hand, extends down
+    const handleGeometry = new THREE.CylinderGeometry(0.03, 0.035, 0.22, 6);
     const handleMaterial = new THREE.MeshStandardMaterial({
         color: 0x554433,
         flatShading: true,
@@ -357,35 +356,34 @@ function createPlayer() {
         roughness: 0.6
     });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-    handle.rotation.x = Math.PI / 2;
-    handle.position.z = -0.12;
+    handle.position.y = -0.2;
     weaponGroup.add(handle);
 
-    // Guard - flat diamond
-    const guardGeometry = new THREE.OctahedronGeometry(0.08, 0);
+    // Guard - at the bottom of handle
+    const guardGeometry = new THREE.OctahedronGeometry(0.07, 0);
     const guardMaterial = new THREE.MeshStandardMaterial({
         color: 0x888888,
         flatShading: true,
         metalness: 0.7
     });
     const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-    guard.scale.set(1.2, 0.25, 0.4);
-    guard.position.z = -0.26;
+    guard.scale.set(1.5, 0.3, 0.5);
+    guard.position.y = -0.32;
     weaponGroup.add(guard);
 
-    // Blade - elongated crystal sword
-    const bladeGeometry = new THREE.ConeGeometry(0.06, 0.8, 4);
+    // Blade - extends down from guard
+    const bladeGeometry = new THREE.ConeGeometry(0.055, 0.9, 4);
     const bladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
-        emissiveIntensity: 0.4,
+        emissiveIntensity: 0.5,
         flatShading: true,
         metalness: 0.8,
         roughness: 0.2
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-    blade.rotation.x = -Math.PI / 2;
-    blade.position.z = -0.68;
+    blade.rotation.x = Math.PI; // Point downward
+    blade.position.y = -0.78;
     weaponGroup.add(blade);
 
     game.player.weapon = weaponGroup;
@@ -520,6 +518,8 @@ function createPlayer() {
     game.player.attackCooldown = 0;
     game.player.isDashing = false;
     game.player.dashTime = 0;
+    game.player.swingDirection = 1; // 1 = left-to-right, -1 = right-to-left
+    game.player.swingProgress = 0; // 0 to 1 during swing animation
 
     // Speed lines for dashing (initially hidden)
     game.player.speedLines = [];
@@ -1025,31 +1025,40 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.rightWristPivot.rotation.x = -Math.PI / 2;
         }
     }
-    // ATTACKING ANIMATION - Pulley/Piston lunge style (CHECK BEFORE BLOCKING)
+    // ATTACKING ANIMATION - Horizontal sword swing (alternates left-right)
     else if (isAttacking) {
-        // Arm extends straight out like a piston/pulley mechanism
-        game.player.rightArmPivot.rotation.x = Math.PI / 2;  // 90 degrees - arm points straight forward
-        game.player.rightArmPivot.rotation.z = 0;
+        const swingDir = game.player.swingDirection;
+        const swingProg = game.player.swingProgress;
 
-        // Elbow STRAIGHTENS for maximum reach - like a telescoping piston
-        game.player.rightElbowPivot.rotation.x = 0;  // Fully straight
+        // Swing arc: starts from one side, sweeps across to the other
+        // swingProg goes 0 -> 1, we map to -1.2 -> +1.2 radians (about 140 degrees total)
+        const swingAngle = (-1.2 + swingProg * 2.4) * swingDir;
 
-        // WRIST counter-rotates to keep sword pointing FORWARD (not down)
-        // Shoulder +90° would make sword point down, so wrist -90° corrects it
-        game.player.rightWristPivot.rotation.x = -Math.PI / 2;
+        // Arm raised and extended forward
+        game.player.rightArmPivot.rotation.x = 0.7; // Arm forward/up
+        game.player.rightArmPivot.rotation.z = swingAngle; // Horizontal swing
 
-        // Torso leans into the lunge
-        game.player.torso.rotation.x = 0.3;
+        // Elbow slightly bent for natural swing
+        game.player.rightElbowPivot.rotation.x = -0.3;
 
-        // Left arm pulls back for counterbalance
-        game.player.leftArmPivot.rotation.x = -0.5;
-        game.player.leftElbowPivot.rotation.x = -0.8;
+        // Wrist tilts to keep sword aligned with swing
+        game.player.rightWristPivot.rotation.x = -0.5;
+        game.player.rightWristPivot.rotation.z = swingAngle * 0.3;
 
-        // Legs brace - front leg forward, back leg straight
-        game.player.rightLegPivot.rotation.x = 0.3;
-        game.player.leftLegPivot.rotation.x = -0.2;
-        game.player.rightKneePivot.rotation.x = 0.2;
-        game.player.leftKneePivot.rotation.x = 0;
+        // Torso rotates with swing for power
+        game.player.torso.rotation.y = swingAngle * 0.3;
+        game.player.torso.rotation.x = 0.1;
+
+        // Left arm counters the swing
+        game.player.leftArmPivot.rotation.x = -0.3;
+        game.player.leftArmPivot.rotation.z = -swingAngle * 0.5;
+        game.player.leftElbowPivot.rotation.x = -0.5;
+
+        // Legs planted
+        game.player.rightLegPivot.rotation.x = 0.1;
+        game.player.leftLegPivot.rotation.x = -0.1;
+        game.player.rightKneePivot.rotation.x = 0.1;
+        game.player.leftKneePivot.rotation.x = 0.1;
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
@@ -1390,27 +1399,40 @@ function attackPlayer(enemy) {
 // Player attack
 function playerAttack() {
     if (game.player.attackCooldown > 0 || game.player.isAttacking) return;
-    
+
     // Need at least 2 energy to attack
     if (game.stats.energy < 2) return;
-    
+
     game.player.isAttacking = true;
-    game.player.attackCooldown = 0.5;
-    
+    game.player.attackCooldown = 0.4;
+
     // Attacking costs trivial energy (2 energy)
     game.stats.energy -= 2;
     if (game.stats.energy < 0) game.stats.energy = 0;
-    
-    const originalZ = game.player.weapon.position.z;
-    game.player.weapon.position.z = -1.5; // Thrust forward
-    setTimeout(() => {
-        game.player.weapon.position.z = originalZ;
-        game.player.isAttacking = false;
-    }, 350); // 350ms so animation is visible
-    
-    // DIRECTIONAL HITBOX - only hit enemies in front where sword swings
-    const attackRange = 2.2; // Sword reach distance
-    const attackAngle = Math.PI / 2; // 90 degree arc (45 degrees each side)
+
+    // Animate the swing over time (0 to 1 over 300ms)
+    game.player.swingProgress = 0;
+    const swingDuration = 300;
+    const swingStart = Date.now();
+
+    function animateSwing() {
+        const elapsed = Date.now() - swingStart;
+        game.player.swingProgress = Math.min(1, elapsed / swingDuration);
+
+        if (elapsed < swingDuration) {
+            requestAnimationFrame(animateSwing);
+        } else {
+            // Swing complete - alternate direction for next attack
+            game.player.swingDirection *= -1;
+            game.player.isAttacking = false;
+            game.player.swingProgress = 0;
+        }
+    }
+    animateSwing();
+
+    // DIRECTIONAL HITBOX - wider arc for sword swing
+    const attackRange = 2.8; // Sword reach distance (increased)
+    const attackAngle = Math.PI * 0.8; // 144 degree arc (72 degrees each side)
 
     // Get player's forward direction (based on rotation)
     const playerForward = new THREE.Vector3(
