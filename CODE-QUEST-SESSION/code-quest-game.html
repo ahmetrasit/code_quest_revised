@@ -1060,70 +1060,64 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Horizontal slash, alternating hands
+    // ATTACKING ANIMATION - Diagonal slash from top, out to side
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
 
-        // Phases: instant start, medium speed slash (0-0.6), fast wrist snap (0.6-1.0)
-        // Arm sweep - ease out (starts faster, slows down)
-        const slashRaw = Math.min(1, swingProg / 0.6);
-        const slash = 1 - Math.pow(1 - slashRaw, 2); // Ease out
-
-        // Wrist snap - ease in (starts slow, speeds up rapidly)
-        const snapRaw = Math.max(0, (swingProg - 0.5) / 0.5);
-        const snap = Math.pow(snapRaw, 3); // Cubic ease in - very fast at end
+        // FAST slash - completes quickly
+        const slash = Math.min(1, swingProg / 0.35);
+        const snap = Math.pow(Math.max(0, (swingProg - 0.2) / 0.8), 2);
 
         if (isRightHand) {
-            // RIGHT ARM - Horizontal slash across body (right to left)
-            // Starts instantly at ready position
+            // RIGHT ARM - From top, slashes down-outward to the right
 
-            // Arm at shoulder height, sweeps horizontally
-            game.player.rightArmPivot.rotation.x = 1.3;
-            game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.4; // Sweep right to left
-            game.player.rightArmPivot.rotation.y = 0;
+            // Arm starts raised, slashes down and out
+            game.player.rightArmPivot.rotation.x = 0.3 + slash * 1.0; // Raised -> forward-down
+            game.player.rightArmPivot.rotation.z = -0.2 - slash * 0.8; // Out to right side
+            game.player.rightArmPivot.rotation.y = 0.1 - slash * 0.2;
 
-            // Elbow bent
-            game.player.rightElbowPivot.rotation.x = -0.3;
+            // Elbow extends
+            game.player.rightElbowPivot.rotation.x = -0.7 + slash * 0.5;
 
-            // Wrist - slow at first, then FAST snap
-            game.player.rightWristPivot.rotation.x = 0;
-            game.player.rightWristPivot.rotation.y = 0.5 - slash * 0.8 - snap * 0.6; // Extra snap at end
+            // Wrist snaps
+            game.player.rightWristPivot.rotation.x = -snap * 0.4;
+            game.player.rightWristPivot.rotation.y = 0;
             game.player.rightWristPivot.rotation.z = 0;
 
-            // Left arm tucked
-            game.player.leftArmPivot.rotation.x = 0.3;
-            game.player.leftArmPivot.rotation.z = 0.3;
-            game.player.leftElbowPivot.rotation.x = -0.8;
+            // Left arm guard
+            game.player.leftArmPivot.rotation.x = 0.4;
+            game.player.leftArmPivot.rotation.z = 0.2;
+            game.player.leftElbowPivot.rotation.x = -0.6;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            // Torso twists with slash
-            game.player.torso.rotation.y = -0.4 + slash * 0.6;
+            // Torso follows
+            game.player.torso.rotation.y = 0.1 - slash * 0.2;
 
         } else {
-            // LEFT ARM - Horizontal slash across body (left to right)
+            // LEFT ARM - From top, slashes down-outward to the left
 
-            game.player.leftArmPivot.rotation.x = 1.3;
-            game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.4; // Sweep left to right
-            game.player.leftArmPivot.rotation.y = 0;
+            game.player.leftArmPivot.rotation.x = 0.3 + slash * 1.0;
+            game.player.leftArmPivot.rotation.z = 0.2 + slash * 0.8; // Out to left side
+            game.player.leftArmPivot.rotation.y = -0.1 + slash * 0.2;
 
-            game.player.leftElbowPivot.rotation.x = -0.3;
+            game.player.leftElbowPivot.rotation.x = -0.7 + slash * 0.5;
 
-            game.player.leftWristPivot.rotation.x = 0;
-            game.player.leftWristPivot.rotation.y = -0.5 + slash * 0.8 + snap * 0.6;
+            game.player.leftWristPivot.rotation.x = -snap * 0.4;
+            game.player.leftWristPivot.rotation.y = 0;
             game.player.leftWristPivot.rotation.z = 0;
 
-            // Right arm tucked
-            game.player.rightArmPivot.rotation.x = 0.3;
-            game.player.rightArmPivot.rotation.z = -0.3;
-            game.player.rightElbowPivot.rotation.x = -0.8;
+            // Right arm guard
+            game.player.rightArmPivot.rotation.x = 0.4;
+            game.player.rightArmPivot.rotation.z = -0.2;
+            game.player.rightElbowPivot.rotation.x = -0.6;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            // Torso twists with slash
-            game.player.torso.rotation.y = 0.4 - slash * 0.6;
+            // Torso follows
+            game.player.torso.rotation.y = -0.1 + slash * 0.2;
         }
 
-        game.player.torso.rotation.x = 0.05;
+        game.player.torso.rotation.x = 0.08;
 
         // Legs stable
         game.player.rightLegPivot.rotation.x = 0.1;
