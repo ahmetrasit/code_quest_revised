@@ -119,8 +119,76 @@ const game = {
     abilities: {
         dash: { cooldown: 0, maxCooldown: 3 },
         block: { cooldown: 0, maxCooldown: 2, active: false }
-    }
+    },
+    textures: {} // Loaded textures stored here
 };
+
+// Texture paths - add textures to the textures/ folder
+const TEXTURE_PATHS = {
+    player_torso: 'textures/player_torso.png',
+    player_head: 'textures/player_head.png',
+    player_arm: 'textures/player_arm.png',
+    player_leg: 'textures/player_leg.png',
+    player_weapon: 'textures/player_weapon.png',
+    enemy_torso: 'textures/enemy_torso.png',
+    enemy_head: 'textures/enemy_head.png',
+    enemy_arm: 'textures/enemy_arm.png',
+    enemy_leg: 'textures/enemy_leg.png',
+    enemy_claw: 'textures/enemy_claw.png',
+    ground: 'textures/ground.png'
+};
+
+// Load all textures (non-blocking, falls back to solid colors)
+function loadTextures() {
+    const loader = new THREE.TextureLoader();
+
+    for (const [name, path] of Object.entries(TEXTURE_PATHS)) {
+        loader.load(
+            path,
+            // Success callback
+            (texture) => {
+                console.log(`Loaded texture: ${name}`);
+                game.textures[name] = texture;
+                // Update materials that use this texture
+                updateMaterialsWithTexture(name, texture);
+            },
+            // Progress callback (not used)
+            undefined,
+            // Error callback - texture not found, use solid color (this is fine)
+            (err) => {
+                console.log(`Texture ${name} not found - using solid color`);
+            }
+        );
+    }
+}
+
+// Update existing materials when a texture loads
+function updateMaterialsWithTexture(textureName, texture) {
+    // This function can be expanded to update specific materials
+    // when their textures become available
+    if (textureName === 'ground' && game.ground) {
+        game.ground.material.map = texture;
+        game.ground.material.needsUpdate = true;
+    }
+}
+
+// Helper: Create material with optional texture
+function createMaterial(color, emissiveColor, textureName, options = {}) {
+    const material = new THREE.MeshStandardMaterial({
+        color: color,
+        emissive: emissiveColor || color,
+        emissiveIntensity: options.emissiveIntensity || 0.5,
+        metalness: options.metalness || 0.3,
+        roughness: options.roughness || 0.7
+    });
+
+    // Apply texture if already loaded
+    if (game.textures[textureName]) {
+        material.map = game.textures[textureName];
+    }
+
+    return material;
+}
 
 // Check if Three.js loaded
 if (typeof THREE === 'undefined') {
@@ -131,7 +199,10 @@ if (typeof THREE === 'undefined') {
 // Initialize Three.js
 function init() {
     console.log('Initializing game...');
-    
+
+    // Start loading textures (non-blocking)
+    loadTextures();
+
     // Scene
     game.scene = new THREE.Scene();
     game.scene.background = new THREE.Color(0xffffff);
@@ -178,8 +249,9 @@ function init() {
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = 0;
+    game.ground = ground; // Store reference for texture updates
     game.scene.add(ground);
-    
+
     console.log('Ground added');
     
     // Visible grid (dark orange on yellow ground)
