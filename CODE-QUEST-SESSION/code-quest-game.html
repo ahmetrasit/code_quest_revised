@@ -216,7 +216,8 @@ function init() {
     document.addEventListener('keydown', (e) => game.keys[e.key.toLowerCase()] = true);
     document.addEventListener('keyup', (e) => game.keys[e.key.toLowerCase()] = false);
     document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('click', onMouseClick);
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right-click menu
     
     console.log('Starting animation loop...');
     
@@ -542,9 +543,11 @@ function createPlayer() {
     game.player.health = game.stats.health;
     game.player.isAttacking = false;
     game.player.attackCooldown = 0;
+    game.player.rightArmCooldown = 0; // Separate cooldown for right arm
+    game.player.leftArmCooldown = 0;  // Separate cooldown for left arm
     game.player.isDashing = false;
     game.player.dashTime = 0;
-    game.player.swingDirection = 1; // 1 = left-to-right, -1 = right-to-left
+    game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
     game.player.swingProgress = 0; // 0 to 1 during swing animation
 
     // Speed lines for dashing (initially hidden)
@@ -888,7 +891,13 @@ function updatePlayer(delta) {
     if (game.player.attackCooldown > 0) {
         game.player.attackCooldown -= delta;
     }
-    
+    if (game.player.rightArmCooldown > 0) {
+        game.player.rightArmCooldown -= delta;
+    }
+    if (game.player.leftArmCooldown > 0) {
+        game.player.leftArmCooldown -= delta;
+    }
+
     if (game.player.dashTime > 0) {
         game.player.dashTime -= delta;
         if (game.player.dashTime <= 0) {
@@ -1474,23 +1483,36 @@ function attackPlayer(enemy) {
     }
 }
 
-// Player attack
-function playerAttack() {
-    if (game.player.attackCooldown > 0 || game.player.isAttacking) return;
+// Player attack - useRightArm: true = right arm (right click), false = left arm (left click)
+function playerAttack(useRightArm) {
+    // Check the specific arm's cooldown
+    if (useRightArm) {
+        if (game.player.rightArmCooldown > 0) return;
+    } else {
+        if (game.player.leftArmCooldown > 0) return;
+    }
 
     // Need at least 2 energy to attack
     if (game.stats.energy < 2) return;
 
+    // Set the attack direction based on which arm
+    game.player.swingDirection = useRightArm ? 1 : -1;
     game.player.isAttacking = true;
-    game.player.attackCooldown = 0.4;
+
+    // Set cooldown for the specific arm (0.5s per arm, but can alternate!)
+    if (useRightArm) {
+        game.player.rightArmCooldown = 0.5;
+    } else {
+        game.player.leftArmCooldown = 0.5;
+    }
 
     // Attacking costs trivial energy (2 energy)
     game.stats.energy -= 2;
     if (game.stats.energy < 0) game.stats.energy = 0;
 
-    // Animate the swing over time (0 to 1 over 300ms)
+    // Animate the swing over time (0 to 1 over 250ms)
     game.player.swingProgress = 0;
-    const swingDuration = 300;
+    const swingDuration = 250;
     const swingStart = Date.now();
 
     function animateSwing() {
@@ -1500,8 +1522,7 @@ function playerAttack() {
         if (elapsed < swingDuration) {
             requestAnimationFrame(animateSwing);
         } else {
-            // Swing complete - alternate direction for next attack
-            game.player.swingDirection *= -1;
+            // Swing complete
             game.player.isAttacking = false;
             game.player.swingProgress = 0;
         }
@@ -1573,8 +1594,13 @@ function onMouseMove(event) {
     game.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 }
 
-function onMouseClick() {
-    playerAttack();
+function onMouseDown(event) {
+    // Left click (button 0) = left arm, Right click (button 2) = right arm
+    if (event.button === 0) {
+        playerAttack(false); // Left arm
+    } else if (event.button === 2) {
+        playerAttack(true);  // Right arm
+    }
 }
 
 // Window resize
