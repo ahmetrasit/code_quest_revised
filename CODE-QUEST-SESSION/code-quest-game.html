@@ -332,36 +332,49 @@ function createPlayer() {
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // WEAPON - Low poly crystal sword
+    // Hand/fist holding the sword
+    const handGeometry = new THREE.IcosahedronGeometry(0.07, 0);
+    const handMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3a7bc8,
+        flatShading: true,
+        metalness: 0.2,
+        roughness: 0.8
+    });
+    const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+    rightHand.position.y = -0.08;
+    rightWristPivot.add(rightHand);
+
+    // WEAPON - Low poly crystal sword (held in hand)
     const weaponGroup = new THREE.Group();
+    weaponGroup.position.set(0, -0.08, 0); // Position at hand
 
     // Handle - octagonal cylinder
-    const handleGeometry = new THREE.CylinderGeometry(0.04, 0.05, 0.3, 6);
+    const handleGeometry = new THREE.CylinderGeometry(0.035, 0.04, 0.25, 6);
     const handleMaterial = new THREE.MeshStandardMaterial({
-        color: 0x666666,
+        color: 0x554433,
         flatShading: true,
-        metalness: 0.6,
-        roughness: 0.4
+        metalness: 0.4,
+        roughness: 0.6
     });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
     handle.rotation.x = Math.PI / 2;
-    handle.position.z = -0.15;
+    handle.position.z = -0.12;
     weaponGroup.add(handle);
 
     // Guard - flat diamond
-    const guardGeometry = new THREE.OctahedronGeometry(0.1, 0);
+    const guardGeometry = new THREE.OctahedronGeometry(0.08, 0);
     const guardMaterial = new THREE.MeshStandardMaterial({
         color: 0x888888,
         flatShading: true,
         metalness: 0.7
     });
     const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-    guard.scale.set(1.5, 0.3, 0.5);
-    guard.position.z = -0.32;
+    guard.scale.set(1.2, 0.25, 0.4);
+    guard.position.z = -0.26;
     weaponGroup.add(guard);
 
-    // Blade - elongated octahedron (crystal sword)
-    const bladeGeometry = new THREE.ConeGeometry(0.08, 1.0, 4);
+    // Blade - elongated crystal sword
+    const bladeGeometry = new THREE.ConeGeometry(0.06, 0.8, 4);
     const bladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
@@ -372,7 +385,7 @@ function createPlayer() {
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.rotation.x = -Math.PI / 2;
-    blade.position.z = -0.85;
+    blade.position.z = -0.68;
     weaponGroup.add(blade);
 
     game.player.weapon = weaponGroup;
@@ -1395,13 +1408,38 @@ function playerAttack() {
         game.player.isAttacking = false;
     }, 350); // 350ms so animation is visible
     
-    const attackRange = 2.5;
+    // DIRECTIONAL HITBOX - only hit enemies in front where sword swings
+    const attackRange = 2.2; // Sword reach distance
+    const attackAngle = Math.PI / 2; // 90 degree arc (45 degrees each side)
+
+    // Get player's forward direction (based on rotation)
+    const playerForward = new THREE.Vector3(
+        -Math.sin(game.player.rotation.y),
+        0,
+        -Math.cos(game.player.rotation.y)
+    );
+
     for (let enemy of game.enemies) {
+        if (!enemy.isActive) continue;
+
         const distance = game.player.position.distanceTo(enemy.position);
-        if (distance < attackRange && enemy.isActive) {
+        if (distance > attackRange) continue; // Too far
+
+        // Get direction to enemy
+        const toEnemy = new THREE.Vector3()
+            .subVectors(enemy.position, game.player.position)
+            .normalize();
+        toEnemy.y = 0; // Only consider horizontal direction
+
+        // Check angle between player forward and direction to enemy
+        const dot = playerForward.dot(toEnemy);
+        const angleToEnemy = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+        // Only hit if enemy is within the attack arc (in front of player)
+        if (angleToEnemy < attackAngle / 2) {
             const damage = game.stats.attack;
             enemy.health -= damage;
-            
+
             // Hit effect on enemy body
             if (enemy.bodyMaterial) {
                 const originalEmissive = enemy.bodyMaterial.emissive.getHex();
@@ -1414,12 +1452,10 @@ function playerAttack() {
                     }
                 }, 100);
             }
-            
-            const direction = new THREE.Vector3()
-                .subVectors(enemy.position, game.player.position)
-                .normalize();
-            enemy.position.x += direction.x * 2;
-            enemy.position.z += direction.z * 2;
+
+            // Knockback in the direction of the hit
+            enemy.position.x += toEnemy.x * 2;
+            enemy.position.z += toEnemy.z * 2;
         }
     }
 }
