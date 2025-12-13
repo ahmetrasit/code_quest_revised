@@ -1060,19 +1060,23 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Diagonal 45° slash (SLOW for visibility)
+    // ATTACKING ANIMATION - Diagonal 45° slash from TOP to bottom
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
 
-        // SLOW - takes full animation time
+        // Animation timing
         const slash = Math.min(1, swingProg / 1.0);
 
-        if (isRightHand) {
-            // RIGHT ARM - Diagonal 45°: starts up-right, ends down-left
+        // Store end position for next attack
+        game.player.lastAttackHand = isRightHand ? 'right' : 'left';
+        game.player.lastAttackSlash = slash;
 
-            game.player.rightArmPivot.rotation.x = 0.0 + slash * 1.8; // Up -> down (big motion)
-            game.player.rightArmPivot.rotation.z = -1.0 + slash * 1.8; // Right -> left (same = 45°)
+        if (isRightHand) {
+            // RIGHT ARM - Starts TOP-right, slashes to bottom-left
+
+            game.player.rightArmPivot.rotation.x = 1.8 - slash * 1.8; // TOP -> bottom (reversed!)
+            game.player.rightArmPivot.rotation.z = 0.8 - slash * 1.8; // Right -> left
             game.player.rightArmPivot.rotation.y = 0;
 
             game.player.rightElbowPivot.rotation.x = -0.1;
@@ -1087,10 +1091,10 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.torso.rotation.y = 0;
 
         } else {
-            // LEFT ARM - Diagonal 45°: starts up-left, ends down-right
+            // LEFT ARM - Starts TOP-left, slashes to bottom-right
 
-            game.player.leftArmPivot.rotation.x = 0.0 + slash * 1.8; // Up -> down
-            game.player.leftArmPivot.rotation.z = 1.0 - slash * 1.8; // Left -> right (same = 45°)
+            game.player.leftArmPivot.rotation.x = 1.8 - slash * 1.8; // TOP -> bottom
+            game.player.leftArmPivot.rotation.z = -0.8 + slash * 1.8; // Left -> right
             game.player.leftArmPivot.rotation.y = 0;
 
             game.player.leftElbowPivot.rotation.x = -0.1;
@@ -1222,22 +1226,46 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // IDLE
+    // IDLE - Stay at attack end position if just attacked
     else {
         // Gentle idle breathing
         const breathCycle = Math.sin(game.player.animTime * 2);
         game.player.torso.position.y = 1.5 + breathCycle * 0.02;
 
-        // Arms at rest
-        game.player.rightArmPivot.rotation.x = 0;
-        game.player.leftArmPivot.rotation.x = 0;
-        game.player.rightArmPivot.rotation.z = 0;
-        game.player.leftArmPivot.rotation.z = 0;
-        game.player.rightElbowPivot.rotation.x = 0;
-        game.player.leftElbowPivot.rotation.x = 0;
+        // If just finished attacking, stay at end position
+        if (game.player.lastAttackHand === 'right') {
+            // Right arm stays at attack end position (bottom-left)
+            game.player.rightArmPivot.rotation.x = 0;
+            game.player.rightArmPivot.rotation.z = -1.0;
+            game.player.rightElbowPivot.rotation.x = -0.1;
+            game.player.rightWristPivot.rotation.set(0, 0, 0);
+            // Left arm tucked
+            game.player.leftArmPivot.rotation.x = 0.3;
+            game.player.leftArmPivot.rotation.z = 0.3;
+            game.player.leftElbowPivot.rotation.x = -0.8;
+        } else if (game.player.lastAttackHand === 'left') {
+            // Left arm stays at attack end position (bottom-right)
+            game.player.leftArmPivot.rotation.x = 0;
+            game.player.leftArmPivot.rotation.z = 1.0;
+            game.player.leftElbowPivot.rotation.x = -0.1;
+            game.player.leftWristPivot.rotation.set(0, 0, 0);
+            // Right arm tucked
+            game.player.rightArmPivot.rotation.x = 0.3;
+            game.player.rightArmPivot.rotation.z = -0.3;
+            game.player.rightElbowPivot.rotation.x = -0.8;
+        } else {
+            // No attack yet - arms at rest
+            game.player.rightArmPivot.rotation.x = 0;
+            game.player.leftArmPivot.rotation.x = 0;
+            game.player.rightArmPivot.rotation.z = 0;
+            game.player.leftArmPivot.rotation.z = 0;
+            game.player.rightElbowPivot.rotation.x = 0;
+            game.player.leftElbowPivot.rotation.x = 0;
+        }
 
-        // Wrist at rest (sword points forward in -Z)
+        // Wrist at rest
         game.player.rightWristPivot.rotation.x = 0;
+        game.player.leftWristPivot.rotation.x = 0;
 
         // Legs at rest
         game.player.rightLegPivot.rotation.x = 0;
