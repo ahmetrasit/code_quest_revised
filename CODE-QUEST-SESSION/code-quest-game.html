@@ -461,7 +461,7 @@ function createPlayer() {
     const slashTrail = new THREE.Mesh(trailGeometry, trailMaterial);
     slashTrail.visible = false;
     game.player.slashTrail = slashTrail;
-    game.player.mesh.add(slashTrail);
+    torso.add(slashTrail); // Add to torso instead of mesh
 
     // Second trail for more effect
     const trailGeometry2 = new THREE.RingGeometry(1.0, 2.0, 16, 1, 0, Math.PI * 0.6);
@@ -475,7 +475,7 @@ function createPlayer() {
     const slashTrail2 = new THREE.Mesh(trailGeometry2, trailMaterial2);
     slashTrail2.visible = false;
     game.player.slashTrail2 = slashTrail2;
-    game.player.mesh.add(slashTrail2);
+    torso.add(slashTrail2); // Add to torso instead of mesh
 
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
