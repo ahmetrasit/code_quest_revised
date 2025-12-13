@@ -1134,15 +1134,15 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // BLOCKING ANIMATION - Fists raised in guard position
+    // BLOCKING ANIMATION - Fists raised in tight guard
     else if (isBlocking) {
-        // Arms up in defensive position
-        game.player.rightArmPivot.rotation.x = 0.9;   // Forward
-        game.player.rightArmPivot.rotation.z = -0.5;  // Cross toward center
-        game.player.leftArmPivot.rotation.x = 0.9;    // Forward
-        game.player.leftArmPivot.rotation.z = 0.5;    // Cross toward center
-        game.player.rightElbowPivot.rotation.x = -0.4; // Slight bend
-        game.player.leftElbowPivot.rotation.x = -0.4;
+        // Arms crossed in front, forearms up
+        game.player.rightArmPivot.rotation.x = 0.6;
+        game.player.rightArmPivot.rotation.z = -0.3;
+        game.player.leftArmPivot.rotation.x = 0.6;
+        game.player.leftArmPivot.rotation.z = 0.3;
+        game.player.rightElbowPivot.rotation.x = -2.2;
+        game.player.leftElbowPivot.rotation.x = -2.2;
         game.player.rightWristPivot.rotation.x = 0;
         game.player.leftWristPivot.rotation.x = 0;
 
@@ -1167,13 +1167,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         const walkCycle = Math.sin(game.player.animTime * walkSpeed);
         const bobCycle = Math.sin(game.player.animTime * 4);
 
-        // Boxer stance - arms up, slight bob
-        game.player.rightArmPivot.rotation.x = 1.0 + bobCycle * 0.05;
-        game.player.leftArmPivot.rotation.x = 1.0 + bobCycle * 0.05;
-        game.player.rightArmPivot.rotation.z = -0.3;
-        game.player.leftArmPivot.rotation.z = 0.3;
-        game.player.rightElbowPivot.rotation.x = -1.2;
-        game.player.leftElbowPivot.rotation.x = -1.2;
+        // Boxer stance - upper arms straight forward, forearms bent up
+        game.player.rightArmPivot.rotation.x = 0.4 + bobCycle * 0.05;
+        game.player.leftArmPivot.rotation.x = 0.4 + bobCycle * 0.05;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = -2.0;
+        game.player.leftElbowPivot.rotation.x = -2.0;
         game.player.rightWristPivot.rotation.x = 0;
         game.player.leftWristPivot.rotation.x = 0;
 
@@ -1194,13 +1194,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         const walkCycle = Math.sin(game.player.animTime * walkSpeed);
         const bobCycle = Math.sin(game.player.animTime * 4);
 
-        // Boxer stance - arms up, slight bob while moving
-        game.player.rightArmPivot.rotation.x = 1.0 + bobCycle * 0.08;
-        game.player.leftArmPivot.rotation.x = 1.0 - bobCycle * 0.08;
-        game.player.rightArmPivot.rotation.z = -0.3;
-        game.player.leftArmPivot.rotation.z = 0.3;
-        game.player.rightElbowPivot.rotation.x = -1.2;
-        game.player.leftElbowPivot.rotation.x = -1.2;
+        // Boxer stance - upper arms straight forward, forearms bent up
+        game.player.rightArmPivot.rotation.x = 0.4 + bobCycle * 0.08;
+        game.player.leftArmPivot.rotation.x = 0.4 - bobCycle * 0.08;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = -2.0;
+        game.player.leftElbowPivot.rotation.x = -2.0;
         game.player.rightWristPivot.rotation.x = 0;
         game.player.leftWristPivot.rotation.x = 0;
 
@@ -1221,13 +1221,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     else if (isRotating) {
         const bobCycle = Math.sin(game.player.animTime * 4);
 
-        // Boxer stance while turning
-        game.player.rightArmPivot.rotation.x = 1.0 + bobCycle * 0.05;
-        game.player.leftArmPivot.rotation.x = 1.0 + bobCycle * 0.05;
-        game.player.rightArmPivot.rotation.z = -0.3;
-        game.player.leftArmPivot.rotation.z = 0.3;
-        game.player.rightElbowPivot.rotation.x = -1.2;
-        game.player.leftElbowPivot.rotation.x = -1.2;
+        // Boxer stance - upper arms straight forward, forearms bent up
+        game.player.rightArmPivot.rotation.x = 0.4 + bobCycle * 0.05;
+        game.player.leftArmPivot.rotation.x = 0.4 + bobCycle * 0.05;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = -2.0;
+        game.player.leftElbowPivot.rotation.x = -2.0;
         game.player.rightWristPivot.rotation.x = 0;
         game.player.leftWristPivot.rotation.x = 0;
 
@@ -1254,13 +1254,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         if (game.player.rightFistTrail) game.player.rightFistTrail.material.opacity = 0;
         if (game.player.leftFistTrail) game.player.leftFistTrail.material.opacity = 0;
 
-        // Boxer fighting stance - fists up near face
-        game.player.rightArmPivot.rotation.x = 1.0 + bobCycle * 0.06;
-        game.player.leftArmPivot.rotation.x = 1.0 - bobCycle * 0.06;
-        game.player.rightArmPivot.rotation.z = -0.3;
-        game.player.leftArmPivot.rotation.z = 0.3;
-        game.player.rightElbowPivot.rotation.x = -1.2;
-        game.player.leftElbowPivot.rotation.x = -1.2;
+        // Boxer stance - upper arms straight forward, forearms bent up
+        game.player.rightArmPivot.rotation.x = 0.4 + bobCycle * 0.06;
+        game.player.leftArmPivot.rotation.x = 0.4 - bobCycle * 0.06;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = -2.0;
+        game.player.leftElbowPivot.rotation.x = -2.0;
         game.player.rightWristPivot.rotation.x = 0;
         game.player.leftWristPivot.rotation.x = 0;
 
