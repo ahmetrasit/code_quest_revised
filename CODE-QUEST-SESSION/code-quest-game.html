@@ -1074,14 +1074,14 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         const snap = Math.pow(snapRaw, 2);
 
         if (isRightHand) {
-            // RIGHT ARM - Starts from top, slashes down
+            // RIGHT ARM - 45° up to 45° down (90° arc)
 
-            // Arm starts raised, comes down during slash
-            game.player.rightArmPivot.rotation.x = 0.4 + slash * 0.9; // Top -> down
+            // 45° = 0.785 rad. Start ~45° up, end ~45° down
+            game.player.rightArmPivot.rotation.x = 0.3 + slash * 1.57; // 45° up -> 45° down
             game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.4;
             game.player.rightArmPivot.rotation.y = 0;
 
-            game.player.rightElbowPivot.rotation.x = -0.5 + slash * 0.3;
+            game.player.rightElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
             game.player.rightWristPivot.rotation.x = 0;
             game.player.rightWristPivot.rotation.y = 0.5 - slash * 0.8 - snap * 0.5;
@@ -1096,13 +1096,13 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.torso.rotation.y = -0.4 + slash * 0.6;
 
         } else {
-            // LEFT ARM - Starts from top, slashes down
+            // LEFT ARM - 45° up to 45° down (90° arc)
 
-            game.player.leftArmPivot.rotation.x = 0.4 + slash * 0.9; // Top -> down
+            game.player.leftArmPivot.rotation.x = 0.3 + slash * 1.57; // 45° up -> 45° down
             game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.4;
             game.player.leftArmPivot.rotation.y = 0;
 
-            game.player.leftElbowPivot.rotation.x = -0.5 + slash * 0.3;
+            game.player.leftElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
             game.player.leftWristPivot.rotation.x = 0;
             game.player.leftWristPivot.rotation.y = -0.5 + slash * 0.8 + snap * 0.5;
