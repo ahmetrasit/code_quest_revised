@@ -550,6 +550,10 @@ function createPlayer() {
     game.player.isAttackingLeft = false;
     game.player.rightSwingProgress = 0;
     game.player.leftSwingProgress = 0;
+    // Kick state
+    game.player.isKicking = false;
+    game.player.kickCooldown = 0;
+    game.player.kickProgress = 0;
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -902,6 +906,9 @@ function updatePlayer(delta) {
     if (game.player.leftArmCooldown > 0) {
         game.player.leftArmCooldown -= delta;
     }
+    if (game.player.kickCooldown > 0) {
+        game.player.kickCooldown -= delta;
+    }
 
     if (game.player.dashTime > 0) {
         game.player.dashTime -= delta;
@@ -1024,12 +1031,40 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     const isBlocking = game.abilities.block.active;
     const isDashing = game.player.isDashing;
     const isAttacking = game.player.isAttacking;
+    const isKicking = game.player.isKicking;
 
     const walkSpeed = 4;
     const walkAmplitude = 0.4;
 
+    // KICKING ANIMATION - powerful knockback kick
+    if (isKicking) {
+        const kickProg = game.player.kickProgress;
+        const kickExtend = kickProg < 0.4 ? kickProg * 2.5 : 1; // Quick extend
+
+        // Right leg kicks forward
+        game.player.rightLegPivot.rotation.x = -0.3 + kickExtend * 1.8; // Leg swings forward
+        game.player.rightKneePivot.rotation.x = 0.3 - kickExtend * 0.3; // Knee straightens
+
+        // Left leg planted
+        game.player.leftLegPivot.rotation.x = 0.2;
+        game.player.leftKneePivot.rotation.x = 0.3;
+
+        // Arms stay in boxer stance but lean back
+        game.player.rightArmPivot.rotation.x = 0.3;
+        game.player.leftArmPivot.rotation.x = 0.3;
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.rightElbowPivot.rotation.x = 2.0;
+        game.player.leftElbowPivot.rotation.x = 2.0;
+
+        // Torso leans back for balance
+        game.player.torso.rotation.x = -0.3 * kickExtend;
+        game.player.torso.rotation.y = 0;
+
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
     // DASHING ANIMATION
-    if (isDashing) {
+    else if (isDashing) {
         // Arms stretched back (rotate shoulder pivots)
         game.player.rightArmPivot.rotation.x = 1.2;
         game.player.leftArmPivot.rotation.x = 1.2;
@@ -1718,6 +1753,87 @@ function createLightningBolt(startPos, endPos) {
     }, 30);
 }
 
+// Player kick - middle mouse button, less damage but huge knockback
+function playerKick() {
+    if (game.player.kickCooldown > 0 || game.player.isKicking) return;
+
+    // Need at least 3 energy to kick
+    if (game.stats.energy < 3) return;
+
+    game.player.isKicking = true;
+    game.player.kickCooldown = 0.7; // Longer cooldown than punch
+    game.player.kickProgress = 0;
+
+    // Kicking costs more energy
+    game.stats.energy -= 3;
+    if (game.stats.energy < 0) game.stats.energy = 0;
+
+    // Animate the kick
+    const kickDuration = 300;
+    const kickStart = Date.now();
+
+    function animateKick() {
+        const elapsed = Date.now() - kickStart;
+        game.player.kickProgress = Math.min(1, elapsed / kickDuration);
+
+        if (elapsed < kickDuration) {
+            requestAnimationFrame(animateKick);
+        } else {
+            game.player.isKicking = false;
+            game.player.kickProgress = 0;
+        }
+    }
+    animateKick();
+
+    // Kick hitbox - narrower but still forward
+    const kickRange = 2.5;
+    const kickAngle = Math.PI * 0.5; // 90 degree arc
+
+    const playerForward = new THREE.Vector3(
+        -Math.sin(game.player.rotation.y),
+        0,
+        -Math.cos(game.player.rotation.y)
+    );
+
+    for (let enemy of game.enemies) {
+        if (!enemy.isActive) continue;
+
+        const distance = game.player.position.distanceTo(enemy.position);
+        if (distance > kickRange) continue;
+
+        const toEnemy = new THREE.Vector3()
+            .subVectors(enemy.position, game.player.position)
+            .normalize();
+        toEnemy.y = 0;
+
+        const dot = playerForward.dot(toEnemy);
+        const angleToEnemy = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+        if (angleToEnemy < kickAngle / 2) {
+            // Less damage than punch (half)
+            const damage = Math.floor(game.stats.attack * 0.5);
+            enemy.health -= damage;
+
+            // Simple hit effect (no chain lightning)
+            if (enemy.bodyMaterial) {
+                const originalEmissive = enemy.bodyMaterial.emissive.getHex();
+                enemy.bodyMaterial.emissive.setHex(0xffaa00);
+                enemy.bodyMaterial.emissiveIntensity = 1.5;
+                setTimeout(() => {
+                    if (enemy.bodyMaterial) {
+                        enemy.bodyMaterial.emissive.setHex(originalEmissive);
+                        enemy.bodyMaterial.emissiveIntensity = 0.5;
+                    }
+                }, 150);
+            }
+
+            // MASSIVE knockback - 5x normal!
+            enemy.position.x += toEnemy.x * 10;
+            enemy.position.z += toEnemy.z * 10;
+        }
+    }
+}
+
 // Respawn player
 function respawnPlayer() {
     game.stats.health = game.stats.maxHealth;
@@ -1732,11 +1848,13 @@ function onMouseMove(event) {
 }
 
 function onMouseDown(event) {
-    // Left click (button 0) = left arm, Right click (button 2) = right arm
+    // Left click (button 0) = left arm, Right click (button 2) = right arm, Middle click (button 1) = kick
     if (event.button === 0) {
         playerAttack(false); // Left arm
     } else if (event.button === 2) {
         playerAttack(true);  // Right arm
+    } else if (event.button === 1) {
+        playerKick(); // Powerful knockback kick
     }
 }
 
