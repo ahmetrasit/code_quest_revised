@@ -385,7 +385,6 @@ function createPlayer() {
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.rotation.x = Math.PI / 2; // Point forward (-Z), tip first
-    blade.rotation.y = Math.PI / 4; // Rotate so flat part faces up
     blade.position.z = -0.97; // Moved out for longer blade
     weaponGroup.add(blade);
 
@@ -444,7 +443,6 @@ function createPlayer() {
 
     const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
     leftBlade.rotation.x = Math.PI / 2; // Point forward, tip first
-    leftBlade.rotation.y = Math.PI / 4; // Rotate so flat part faces up
     leftBlade.position.z = -0.97; // Match longer blade position
     leftWeaponGroup.add(leftBlade);
 
@@ -1155,20 +1153,20 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.slashTrail2.visible = true;
 
             // Position trail in front of player at chest height
-            game.player.slashTrail.position.set(0, 0, -1.2);
-            game.player.slashTrail2.position.set(0, 0, -1.2);
+            game.player.slashTrail.position.set(0, 0.2, -1.0);
+            game.player.slashTrail2.position.set(0, 0.2, -1.0);
 
-            // Trail lies horizontal, tilts with sword position
+            // Trail lies flat (horizontal plane), rotates Y to follow sword arc
             if (isRightHand) {
-                // Right hand: sweeps right to left
-                const armZ = -0.9 + slash * 1.8; // Match arm rotation.z
-                game.player.slashTrail.rotation.set(0, 0, armZ);
-                game.player.slashTrail2.rotation.set(0, 0, armZ);
+                // Right hand: sweeps right to left, trail shows arc
+                const trailY = -0.5 + slash * 1.0; // Rotate to follow sword
+                game.player.slashTrail.rotation.set(Math.PI / 2, trailY, 0);
+                game.player.slashTrail2.rotation.set(Math.PI / 2, trailY, 0);
             } else {
                 // Left hand: sweeps left to right
-                const armZ = 0.9 - slash * 1.8; // Match arm rotation.z
-                game.player.slashTrail.rotation.set(0, 0, armZ);
-                game.player.slashTrail2.rotation.set(0, 0, armZ);
+                const trailY = 0.5 - slash * 1.0;
+                game.player.slashTrail.rotation.set(Math.PI / 2, trailY, 0);
+                game.player.slashTrail2.rotation.set(Math.PI / 2, trailY, 0);
             }
 
             // Fade in quickly, fade out at end
