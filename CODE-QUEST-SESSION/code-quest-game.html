@@ -1078,8 +1078,10 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
             game.player.rightElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
-            // Keep wrist stable - no awkward rotation
-            game.player.rightWristPivot.rotation.set(0, 0, 0);
+            // Wrist tilts sword to point down at end
+            game.player.rightWristPivot.rotation.x = slash * 0.8;
+            game.player.rightWristPivot.rotation.y = 0;
+            game.player.rightWristPivot.rotation.z = 0;
 
             // Left arm tucked
             game.player.leftArmPivot.rotation.x = 0.3;
@@ -1098,8 +1100,10 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
             game.player.leftElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
-            // Keep wrist stable - no awkward rotation
-            game.player.leftWristPivot.rotation.set(0, 0, 0);
+            // Wrist tilts sword to point down at end
+            game.player.leftWristPivot.rotation.x = slash * 0.8;
+            game.player.leftWristPivot.rotation.y = 0;
+            game.player.leftWristPivot.rotation.z = 0;
 
             // Right arm tucked
             game.player.rightArmPivot.rotation.x = 0.3;
