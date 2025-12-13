@@ -1145,27 +1145,30 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.rightKneePivot.rotation.x = 0.1;
         game.player.leftKneePivot.rotation.x = 0.1;
 
-        // SWORD TRAIL - Horizontal slash arc
-        if (game.player.slashTrail && slash > 0.1 && slash < 0.9) {
+        // SWORD TRAIL - Appears as sword moves, follows sword path
+        if (game.player.slashTrail && slash > 0.05) {
             game.player.slashTrail.visible = true;
             game.player.slashTrail2.visible = true;
 
-            // Position trail in front of player at chest height
-            game.player.slashTrail.position.set(0, 0, -1.0);
-            game.player.slashTrail2.position.set(0, 0, -1.0);
+            // Position trail in front of player, follows sword
+            game.player.slashTrail.position.set(0, 0, -1.5);
+            game.player.slashTrail2.position.set(0, 0, -1.5);
 
+            // Trail faces forward (toward camera/enemies), rotates with slash
             if (isRightHand) {
-                // Right hand slash: horizontal right to left
-                game.player.slashTrail.rotation.set(Math.PI/2, 0, -0.9 + slash * 1.8);
-                game.player.slashTrail2.rotation.set(Math.PI/2, 0, -0.9 + slash * 1.8);
+                // Right hand: trail follows sword from right to left
+                const trailAngle = -0.9 + slash * 1.8;
+                game.player.slashTrail.rotation.set(Math.PI/2, trailAngle, 0);
+                game.player.slashTrail2.rotation.set(Math.PI/2, trailAngle, 0);
             } else {
-                // Left hand slash: horizontal left to right
-                game.player.slashTrail.rotation.set(Math.PI/2, 0, 0.9 - slash * 1.8);
-                game.player.slashTrail2.rotation.set(Math.PI/2, 0, 0.9 - slash * 1.8);
+                // Left hand: trail follows sword from left to right
+                const trailAngle = 0.9 - slash * 1.8;
+                game.player.slashTrail.rotation.set(Math.PI/2, trailAngle, 0);
+                game.player.slashTrail2.rotation.set(Math.PI/2, trailAngle, 0);
             }
 
-            // Fade based on slash progress
-            const trailOpacity = Math.sin(slash * Math.PI) * 0.8;
+            // Trail grows as sword moves, then fades
+            const trailOpacity = Math.min(slash * 2, 1) * (1 - slash * 0.5) * 0.8;
             game.player.slashTrail.material.opacity = trailOpacity;
             game.player.slashTrail2.material.opacity = trailOpacity * 0.5;
         } else {
