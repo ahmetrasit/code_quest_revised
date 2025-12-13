@@ -332,10 +332,7 @@ function createPlayer() {
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // WEAPON GROUP - sword held in hand, extending downward from wrist
-    const weaponGroup = new THREE.Group();
-
-    // Hand/fist gripping the sword handle
+    // Hand/fist at wrist
     const handGeometry = new THREE.IcosahedronGeometry(0.08, 0);
     const handMaterial = new THREE.MeshStandardMaterial({
         color: 0x3a7bc8,
@@ -344,11 +341,15 @@ function createPlayer() {
         roughness: 0.8
     });
     const rightHand = new THREE.Mesh(handGeometry, handMaterial);
-    rightHand.position.y = -0.1;
-    weaponGroup.add(rightHand);
+    rightHand.position.y = -0.08;
+    rightWristPivot.add(rightHand);
 
-    // Handle - inside the hand, extends down
-    const handleGeometry = new THREE.CylinderGeometry(0.03, 0.035, 0.22, 6);
+    // WEAPON GROUP - sword extends FORWARD (-Z) from hand
+    const weaponGroup = new THREE.Group();
+    weaponGroup.position.y = -0.08; // At hand position
+
+    // Handle - extends forward from hand
+    const handleGeometry = new THREE.CylinderGeometry(0.03, 0.035, 0.2, 6);
     const handleMaterial = new THREE.MeshStandardMaterial({
         color: 0x554433,
         flatShading: true,
@@ -356,23 +357,24 @@ function createPlayer() {
         roughness: 0.6
     });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-    handle.position.y = -0.2;
+    handle.rotation.x = Math.PI / 2; // Rotate to point forward
+    handle.position.z = -0.1;
     weaponGroup.add(handle);
 
-    // Guard - at the bottom of handle
-    const guardGeometry = new THREE.OctahedronGeometry(0.07, 0);
+    // Guard - cross guard
+    const guardGeometry = new THREE.OctahedronGeometry(0.06, 0);
     const guardMaterial = new THREE.MeshStandardMaterial({
         color: 0x888888,
         flatShading: true,
         metalness: 0.7
     });
     const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-    guard.scale.set(1.5, 0.3, 0.5);
-    guard.position.y = -0.32;
+    guard.scale.set(1.5, 0.3, 0.4);
+    guard.position.z = -0.22;
     weaponGroup.add(guard);
 
-    // Blade - extends down from guard
-    const bladeGeometry = new THREE.ConeGeometry(0.055, 0.9, 4);
+    // Blade - extends forward (-Z) from guard
+    const bladeGeometry = new THREE.ConeGeometry(0.05, 0.85, 4);
     const bladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
@@ -382,8 +384,8 @@ function createPlayer() {
         roughness: 0.2
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-    blade.rotation.x = Math.PI; // Point downward
-    blade.position.y = -0.78;
+    blade.rotation.x = -Math.PI / 2; // Point forward (-Z)
+    blade.position.z = -0.67;
     weaponGroup.add(blade);
 
     game.player.weapon = weaponGroup;
@@ -1025,38 +1027,40 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.rightWristPivot.rotation.x = -Math.PI / 2;
         }
     }
-    // ATTACKING ANIMATION - Horizontal sword swing (alternates left-right)
+    // ATTACKING ANIMATION - Horizontal sword swing in front of player
     else if (isAttacking) {
         const swingDir = game.player.swingDirection;
         const swingProg = game.player.swingProgress;
 
-        // Swing arc: starts from one side, sweeps across to the other
-        // swingProg goes 0 -> 1, we map to -1.2 -> +1.2 radians (about 140 degrees total)
-        const swingAngle = (-1.2 + swingProg * 2.4) * swingDir;
+        // Swing arc: sweeps horizontally in front of player
+        // swingProg 0->1 maps to starting position -> ending position
+        const swingAngle = (-1.0 + swingProg * 2.0) * swingDir;
 
-        // Arm raised and extended forward
-        game.player.rightArmPivot.rotation.x = 0.7; // Arm forward/up
-        game.player.rightArmPivot.rotation.z = swingAngle; // Horizontal swing
+        // Arm extended forward, sweeping horizontally via shoulder Y rotation
+        game.player.rightArmPivot.rotation.x = Math.PI / 2.5; // Arm forward (pointing toward -Z)
+        game.player.rightArmPivot.rotation.y = swingAngle; // Horizontal sweep!
+        game.player.rightArmPivot.rotation.z = 0;
 
-        // Elbow slightly bent for natural swing
-        game.player.rightElbowPivot.rotation.x = -0.3;
+        // Elbow straight for reach
+        game.player.rightElbowPivot.rotation.x = 0;
 
-        // Wrist tilts to keep sword aligned with swing
-        game.player.rightWristPivot.rotation.x = -0.5;
-        game.player.rightWristPivot.rotation.z = swingAngle * 0.3;
+        // Wrist keeps sword level
+        game.player.rightWristPivot.rotation.x = 0;
+        game.player.rightWristPivot.rotation.y = 0;
+        game.player.rightWristPivot.rotation.z = 0;
 
         // Torso rotates with swing for power
-        game.player.torso.rotation.y = swingAngle * 0.3;
-        game.player.torso.rotation.x = 0.1;
+        game.player.torso.rotation.y = swingAngle * 0.4;
+        game.player.torso.rotation.x = 0;
 
-        // Left arm counters the swing
-        game.player.leftArmPivot.rotation.x = -0.3;
-        game.player.leftArmPivot.rotation.z = -swingAngle * 0.5;
-        game.player.leftElbowPivot.rotation.x = -0.5;
+        // Left arm counters
+        game.player.leftArmPivot.rotation.x = -0.2;
+        game.player.leftArmPivot.rotation.y = -swingAngle * 0.3;
+        game.player.leftElbowPivot.rotation.x = -0.4;
 
         // Legs planted
-        game.player.rightLegPivot.rotation.x = 0.1;
-        game.player.leftLegPivot.rotation.x = -0.1;
+        game.player.rightLegPivot.rotation.x = 0;
+        game.player.leftLegPivot.rotation.x = 0;
         game.player.rightKneePivot.rotation.x = 0.1;
         game.player.leftKneePivot.rotation.x = 0.1;
 
