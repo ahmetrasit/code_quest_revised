@@ -332,23 +332,47 @@ function createPlayer() {
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // Hand/fist at wrist - GLOWING ENERGY FIST
-    const handGeometry = new THREE.IcosahedronGeometry(0.1, 0);
+    // Hand/fist at wrist - LARGE GLOWING ENERGY FIST
+    const handGeometry = new THREE.IcosahedronGeometry(0.18, 1);
     const handMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
-        emissiveIntensity: 0.8,
+        emissiveIntensity: 1.5,
         flatShading: true,
-        metalness: 0.3,
-        roughness: 0.2
+        metalness: 0.5,
+        roughness: 0.1
     });
     const rightHand = new THREE.Mesh(handGeometry, handMaterial);
-    rightHand.position.y = -0.08;
+    rightHand.position.y = -0.1;
     rightWristPivot.add(rightHand);
     game.player.rightHand = rightHand;
 
+    // Right fist electricity - multiple arcs around the fist
+    const rightElectricity = [];
+    const electricMaterial = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending
+    });
+    for (let i = 0; i < 6; i++) {
+        const points = [];
+        const angle = (i / 6) * Math.PI * 2;
+        // Create jagged lightning bolt
+        points.push(new THREE.Vector3(0, 0, 0));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.15, Math.sin(angle) * 0.15, Math.random() * 0.1 - 0.05));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.25, Math.sin(angle) * 0.25, Math.random() * 0.15 - 0.075));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.35, Math.sin(angle) * 0.35, Math.random() * 0.1 - 0.05));
+        const arcGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const arc = new THREE.Line(arcGeometry, electricMaterial.clone());
+        arc.position.y = -0.1;
+        rightWristPivot.add(arc);
+        rightElectricity.push(arc);
+    }
+    game.player.rightElectricity = rightElectricity;
+
     // Right fist trail - extends behind fist when punching
-    const fistTrailGeometry = new THREE.CylinderGeometry(0.02, 0.08, 0.8, 8);
+    const fistTrailGeometry = new THREE.CylinderGeometry(0.03, 0.12, 1.0, 8);
     const fistTrailMaterial = new THREE.MeshBasicMaterial({
         color: 0x00ffff,
         transparent: true,
@@ -357,7 +381,7 @@ function createPlayer() {
     });
     const rightFistTrail = new THREE.Mesh(fistTrailGeometry, fistTrailMaterial);
     rightFistTrail.rotation.x = Math.PI / 2; // Point along Z axis
-    rightFistTrail.position.z = 0.4; // Behind the fist
+    rightFistTrail.position.z = 0.5; // Behind the fist
     rightWristPivot.add(rightFistTrail);
     game.player.rightFistTrail = rightFistTrail;
 
@@ -392,16 +416,33 @@ function createPlayer() {
     leftLowerArm.add(leftWristPivot);
     game.player.leftWristPivot = leftWristPivot;
 
-    // Left hand - GLOWING ENERGY FIST
+    // Left hand - LARGE GLOWING ENERGY FIST
     const leftHand = new THREE.Mesh(handGeometry.clone(), handMaterial.clone());
-    leftHand.position.y = -0.08;
+    leftHand.position.y = -0.1;
     leftWristPivot.add(leftHand);
     game.player.leftHand = leftHand;
+
+    // Left fist electricity - multiple arcs around the fist
+    const leftElectricity = [];
+    for (let i = 0; i < 6; i++) {
+        const points = [];
+        const angle = (i / 6) * Math.PI * 2;
+        points.push(new THREE.Vector3(0, 0, 0));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.15, Math.sin(angle) * 0.15, Math.random() * 0.1 - 0.05));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.25, Math.sin(angle) * 0.25, Math.random() * 0.15 - 0.075));
+        points.push(new THREE.Vector3(Math.cos(angle) * 0.35, Math.sin(angle) * 0.35, Math.random() * 0.1 - 0.05));
+        const arcGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const arc = new THREE.Line(arcGeometry, electricMaterial.clone());
+        arc.position.y = -0.1;
+        leftWristPivot.add(arc);
+        leftElectricity.push(arc);
+    }
+    game.player.leftElectricity = leftElectricity;
 
     // Left fist trail - extends behind fist when punching
     const leftFistTrail = new THREE.Mesh(fistTrailGeometry.clone(), fistTrailMaterial.clone());
     leftFistTrail.rotation.x = Math.PI / 2;
-    leftFistTrail.position.z = 0.4;
+    leftFistTrail.position.z = 0.5;
     leftWristPivot.add(leftFistTrail);
     game.player.leftFistTrail = leftFistTrail;
 
@@ -1599,9 +1640,62 @@ function animate(currentTime = 0) {
     
     updatePlayer(delta);
     updateEnemies(delta);
+    updateElectricity();
     updateHUD();
-    
+
     game.renderer.render(game.scene, game.camera);
+}
+
+// Animate electricity arcs on fists
+function updateElectricity() {
+    const time = Date.now() * 0.01;
+
+    // Update right fist electricity
+    if (game.player.rightElectricity) {
+        game.player.rightElectricity.forEach((arc, i) => {
+            const positions = arc.geometry.attributes.position.array;
+            const baseAngle = (i / 6) * Math.PI * 2 + time * 0.5;
+
+            // Randomize middle points for flickering effect
+            positions[3] = Math.cos(baseAngle) * 0.15 + (Math.random() - 0.5) * 0.08;
+            positions[4] = Math.sin(baseAngle) * 0.15 + (Math.random() - 0.5) * 0.08;
+            positions[5] = (Math.random() - 0.5) * 0.15;
+
+            positions[6] = Math.cos(baseAngle) * 0.28 + (Math.random() - 0.5) * 0.12;
+            positions[7] = Math.sin(baseAngle) * 0.28 + (Math.random() - 0.5) * 0.12;
+            positions[8] = (Math.random() - 0.5) * 0.2;
+
+            positions[9] = Math.cos(baseAngle) * 0.4 + (Math.random() - 0.5) * 0.1;
+            positions[10] = Math.sin(baseAngle) * 0.4 + (Math.random() - 0.5) * 0.1;
+            positions[11] = (Math.random() - 0.5) * 0.15;
+
+            arc.geometry.attributes.position.needsUpdate = true;
+            arc.material.opacity = 0.5 + Math.random() * 0.5;
+        });
+    }
+
+    // Update left fist electricity
+    if (game.player.leftElectricity) {
+        game.player.leftElectricity.forEach((arc, i) => {
+            const positions = arc.geometry.attributes.position.array;
+            const baseAngle = (i / 6) * Math.PI * 2 + time * 0.5 + Math.PI;
+
+            positions[3] = Math.cos(baseAngle) * 0.15 + (Math.random() - 0.5) * 0.08;
+            positions[4] = Math.sin(baseAngle) * 0.15 + (Math.random() - 0.5) * 0.08;
+            positions[5] = (Math.random() - 0.5) * 0.15;
+
+            positions[6] = Math.cos(baseAngle) * 0.28 + (Math.random() - 0.5) * 0.12;
+            positions[7] = Math.sin(baseAngle) * 0.28 + (Math.random() - 0.5) * 0.12;
+            positions[8] = (Math.random() - 0.5) * 0.2;
+
+            positions[9] = Math.cos(baseAngle) * 0.4 + (Math.random() - 0.5) * 0.1;
+            positions[10] = Math.sin(baseAngle) * 0.4 + (Math.random() - 0.5) * 0.1;
+            positions[11] = (Math.random() - 0.5) * 0.15;
+
+            arc.geometry.attributes.position.needsUpdate = true;
+            arc.material.opacity = 0.5 + Math.random() * 0.5;
+        });
+    }
 }
 
 // Start game
