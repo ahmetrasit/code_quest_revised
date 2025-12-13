@@ -93,7 +93,7 @@
     </div>
     
     <div id="controls">
-        W/S - Forward/Back | A/D - Rotate | L/R Click - Punch | Space - Kick | Middle - Dash | Shift - Block | Scroll Fast - SPIN!
+        W/S - Forward/Back | A/D - Rotate | HOLD L/R Click - Charge Punch (up to 5x dmg!) | Space - Kick | Middle - Dash | Shift - Block | Scroll Fast - SPIN!
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -217,6 +217,7 @@ function init() {
     document.addEventListener('keyup', (e) => game.keys[e.key.toLowerCase()] = false);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp); // Release charged attacks
     document.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right-click menu
     document.addEventListener('wheel', onMouseWheel); // Scroll for spin attack
     
@@ -562,6 +563,12 @@ function createPlayer() {
     game.player.lastScrollTime = 0;
     game.player.spinRotation = 0; // Total rotation during spin
     game.player.spinDamageTimer = 0; // Timer for applying spin damage
+    // Charged attack state
+    game.player.isChargingRight = false;
+    game.player.isChargingLeft = false;
+    game.player.rightChargeTime = 0;
+    game.player.leftChargeTime = 0;
+    game.player.maxChargeTime = 5; // Max 5 seconds charge
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -957,6 +964,37 @@ function updatePlayer(delta) {
     }
     if (game.player.kickCooldown > 0) {
         game.player.kickCooldown -= delta;
+    }
+
+    // Track charging time and update visual feedback
+    if (game.player.isChargingRight) {
+        game.player.rightChargeTime = Math.min(game.player.rightChargeTime + delta, game.player.maxChargeTime);
+        // Visual feedback - fist glows brighter as charge builds
+        const chargePercent = game.player.rightChargeTime / game.player.maxChargeTime;
+        if (game.player.rightHand && game.player.rightHand.material) {
+            game.player.rightHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+            // Scale up fist slightly
+            const scale = 1 + chargePercent * 0.5;
+            game.player.rightHand.scale.set(scale, scale, scale);
+        }
+    } else if (game.player.rightHand && game.player.rightHand.material) {
+        game.player.rightHand.material.emissiveIntensity = 1.5;
+        game.player.rightHand.scale.set(1, 1, 1);
+    }
+
+    if (game.player.isChargingLeft) {
+        game.player.leftChargeTime = Math.min(game.player.leftChargeTime + delta, game.player.maxChargeTime);
+        // Visual feedback - fist glows brighter as charge builds
+        const chargePercent = game.player.leftChargeTime / game.player.maxChargeTime;
+        if (game.player.leftHand && game.player.leftHand.material) {
+            game.player.leftHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+            // Scale up fist slightly
+            const scale = 1 + chargePercent * 0.5;
+            game.player.leftHand.scale.set(scale, scale, scale);
+        }
+    } else if (game.player.leftHand && game.player.leftHand.material) {
+        game.player.leftHand.material.emissiveIntensity = 1.5;
+        game.player.leftHand.scale.set(1, 1, 1);
     }
 
     if (game.player.dashTime > 0) {
@@ -1797,6 +1835,121 @@ function playerAttack(useRightArm) {
     }
 }
 
+// Charged attack - damage scales with charge time (up to 5x at full charge)
+function playerChargedAttack(useRightArm, chargeMultiplier, chargeTime) {
+    // Check the specific arm's cooldown
+    if (useRightArm) {
+        if (game.player.rightArmCooldown > 0) return;
+    } else {
+        if (game.player.leftArmCooldown > 0) return;
+    }
+
+    // Energy cost scales with charge (2 base + up to 8 more for full charge)
+    const energyCost = 2 + Math.floor(chargeTime * 1.6);
+    if (game.stats.energy < energyCost) return;
+
+    // Set attack state for specific arm
+    if (useRightArm) {
+        game.player.isAttackingRight = true;
+        game.player.rightArmCooldown = 0.5 + chargeTime * 0.1; // Longer cooldown for charged attacks
+        game.player.rightSwingProgress = 0;
+    } else {
+        game.player.isAttackingLeft = true;
+        game.player.leftArmCooldown = 0.5 + chargeTime * 0.1;
+        game.player.leftSwingProgress = 0;
+    }
+
+    game.player.isAttacking = true;
+    game.player.swingDirection = useRightArm ? 1 : -1;
+
+    game.stats.energy -= energyCost;
+    if (game.stats.energy < 0) game.stats.energy = 0;
+
+    // Animate the swing (faster for charged attacks)
+    const swingDuration = 200;
+    const swingStart = Date.now();
+
+    function animateSwing() {
+        const elapsed = Date.now() - swingStart;
+        const progress = Math.min(1, elapsed / swingDuration);
+
+        if (useRightArm) {
+            game.player.rightSwingProgress = progress;
+        } else {
+            game.player.leftSwingProgress = progress;
+        }
+
+        if (elapsed < swingDuration) {
+            requestAnimationFrame(animateSwing);
+        } else {
+            if (useRightArm) {
+                game.player.isAttackingRight = false;
+                game.player.rightSwingProgress = 0;
+            } else {
+                game.player.isAttackingLeft = false;
+                game.player.leftSwingProgress = 0;
+            }
+            if (!game.player.isAttackingRight && !game.player.isAttackingLeft) {
+                game.player.isAttacking = false;
+            }
+        }
+    }
+    animateSwing();
+
+    // CHARGED ATTACK - bigger range and damage based on charge
+    const baseRange = 2.8;
+    const attackRange = baseRange + chargeTime * 0.4; // Bigger range when charged
+    const attackAngle = Math.PI * 0.8;
+
+    const playerForward = new THREE.Vector3(
+        -Math.sin(game.player.rotation.y),
+        0,
+        -Math.cos(game.player.rotation.y)
+    );
+
+    // Calculate charged damage (1x to 5x based on charge)
+    const baseDamage = game.stats.attack;
+    const chargedDamage = Math.floor(baseDamage * chargeMultiplier);
+
+    // Knockback scales with charge too
+    const knockbackMultiplier = 1 + chargeTime * 0.6;
+
+    for (let enemy of game.enemies) {
+        if (!enemy.isActive) continue;
+
+        const distance = game.player.position.distanceTo(enemy.position);
+        if (distance > attackRange) continue;
+
+        const toEnemy = new THREE.Vector3()
+            .subVectors(enemy.position, game.player.position)
+            .normalize();
+        toEnemy.y = 0;
+
+        const dot = playerForward.dot(toEnemy);
+        const angleToEnemy = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+        if (angleToEnemy < attackAngle / 2) {
+            enemy.health -= chargedDamage;
+
+            // Electric shock with chain lightning - more chains for charged attacks
+            applyElectricShock(enemy, chargedDamage, [enemy]);
+
+            // Knockback scales with charge
+            enemy.position.x += toEnemy.x * 2 * knockbackMultiplier;
+            enemy.position.z += toEnemy.z * 2 * knockbackMultiplier;
+
+            // Screen shake effect for fully charged hits
+            if (chargeTime >= 4) {
+                // Big hit visual feedback - could add camera shake here
+                enemy.bodyMaterial.emissive.setHex(0xffffff);
+                setTimeout(() => {
+                    if (enemy.bodyMaterial) enemy.bodyMaterial.emissive.setHex(0x00ffff);
+                }, 100);
+            }
+        }
+    }
+}
+
 // Apply electric shock effect to enemy and chain to nearby enemies
 function applyElectricShock(enemy, baseDamage, alreadyHit, chainDepth = 0) {
     const maxChainDepth = 4; // Maximum chain jumps
@@ -2089,10 +2242,18 @@ function onMouseDown(event) {
     // Left click (button 0) = left arm, Right click (button 2) = right arm, Middle click (button 1) = dash
     if (event.button === 0) {
         stopSpin(); // Exit spin on punch
-        playerAttack(false); // Left arm
+        // Start charging left arm
+        if (game.player.leftArmCooldown <= 0 && !game.player.isChargingLeft) {
+            game.player.isChargingLeft = true;
+            game.player.leftChargeTime = 0;
+        }
     } else if (event.button === 2) {
         stopSpin(); // Exit spin on punch
-        playerAttack(true);  // Right arm
+        // Start charging right arm
+        if (game.player.rightArmCooldown <= 0 && !game.player.isChargingRight) {
+            game.player.isChargingRight = true;
+            game.player.rightChargeTime = 0;
+        }
     } else if (event.button === 1) {
         // Dash on middle click - also exits spin
         stopSpin();
@@ -2102,6 +2263,23 @@ function onMouseDown(event) {
             game.abilities.dash.cooldown = game.abilities.dash.maxCooldown;
             game.stats.energy -= 20;
         }
+    }
+}
+
+function onMouseUp(event) {
+    // Release charged attack
+    if (event.button === 0 && game.player.isChargingLeft) {
+        // Release left arm charged attack
+        const chargeMultiplier = 1 + (game.player.leftChargeTime / game.player.maxChargeTime) * 4; // 1x to 5x damage
+        game.player.isChargingLeft = false;
+        playerChargedAttack(false, chargeMultiplier, game.player.leftChargeTime);
+        game.player.leftChargeTime = 0;
+    } else if (event.button === 2 && game.player.isChargingRight) {
+        // Release right arm charged attack
+        const chargeMultiplier = 1 + (game.player.rightChargeTime / game.player.maxChargeTime) * 4; // 1x to 5x damage
+        game.player.isChargingRight = false;
+        playerChargedAttack(true, chargeMultiplier, game.player.rightChargeTime);
+        game.player.rightChargeTime = 0;
     }
 }
 
