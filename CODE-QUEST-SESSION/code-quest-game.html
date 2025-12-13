@@ -93,7 +93,7 @@
     </div>
     
     <div id="controls">
-        W/S - Forward/Back | A/D - Rotate | Click - Attack | Space - Dash | Shift - Block
+        W/S - Forward/Back | A/D - Rotate | L/R Click - Punch | Space - Kick | Middle - Dash | Shift - Block
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -974,12 +974,9 @@ function updatePlayer(delta) {
         if (game.stats.energy < 0) game.stats.energy = 0;
     }
     
-    // Dash ability (can use anytime if sufficient energy)
-    if (game.keys[' '] && !game.player.isDashing && game.stats.energy >= 20) {
-        game.player.isDashing = true;
-        game.player.dashTime = 0.3;
-        game.abilities.dash.cooldown = game.abilities.dash.maxCooldown;
-        game.stats.energy -= 20;
+    // Kick ability (space bar)
+    if (game.keys[' ']) {
+        playerKick();
     }
     
     // Block ability (instant toggle - hold Shift to block, release to unblock)
@@ -1827,9 +1824,9 @@ function playerKick() {
                 }, 150);
             }
 
-            // MASSIVE knockback - 5x normal!
-            enemy.position.x += toEnemy.x * 10;
-            enemy.position.z += toEnemy.z * 10;
+            // Moderate knockback for escape
+            enemy.position.x += toEnemy.x * 1.4;
+            enemy.position.z += toEnemy.z * 1.4;
         }
     }
 }
@@ -1848,13 +1845,19 @@ function onMouseMove(event) {
 }
 
 function onMouseDown(event) {
-    // Left click (button 0) = left arm, Right click (button 2) = right arm, Middle click (button 1) = kick
+    // Left click (button 0) = left arm, Right click (button 2) = right arm, Middle click (button 1) = dash
     if (event.button === 0) {
         playerAttack(false); // Left arm
     } else if (event.button === 2) {
         playerAttack(true);  // Right arm
     } else if (event.button === 1) {
-        playerKick(); // Powerful knockback kick
+        // Dash on middle click
+        if (!game.player.isDashing && game.stats.energy >= 20) {
+            game.player.isDashing = true;
+            game.player.dashTime = 0.3;
+            game.abilities.dash.cooldown = game.abilities.dash.maxCooldown;
+            game.stats.energy -= 20;
+        }
     }
 }
 
