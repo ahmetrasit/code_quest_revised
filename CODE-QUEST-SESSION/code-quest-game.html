@@ -385,7 +385,7 @@ function createPlayer() {
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.rotation.x = Math.PI / 2; // Point forward (-Z), tip first
-    blade.rotation.z = Math.PI / 2; // Rotate blade 90 degrees
+    blade.rotation.y = Math.PI / 2; // Rotate blade 90 degrees
     blade.position.z = -0.97; // Moved out for longer blade
     weaponGroup.add(blade);
 
@@ -444,7 +444,7 @@ function createPlayer() {
 
     const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
     leftBlade.rotation.x = Math.PI / 2; // Point forward, tip first
-    leftBlade.rotation.z = Math.PI / 2; // Rotate blade 90 degrees
+    leftBlade.rotation.y = Math.PI / 2; // Rotate blade 90 degrees
     leftBlade.position.z = -0.97; // Match longer blade position
     leftWeaponGroup.add(leftBlade);
 
