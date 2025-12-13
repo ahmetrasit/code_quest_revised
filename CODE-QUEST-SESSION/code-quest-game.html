@@ -561,6 +561,7 @@ function createPlayer() {
     game.player.spinMomentum = 0; // Accumulated scroll momentum
     game.player.lastScrollTime = 0;
     game.player.spinRotation = 0; // Total rotation during spin
+    game.player.spinDamageTimer = 0; // Timer for applying spin damage
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -1005,24 +1006,30 @@ function updatePlayer(delta) {
             // Update spin speed based on momentum
             game.player.spinSpeed = game.player.spinMomentum * 3;
 
-            // Spin damage to nearby enemies - both regular AND chain lightning!
-            const spinRange = 2.0;
-            const spinDamage = Math.floor(game.stats.attack * 0.4 * delta * 10); // Damage over time
-            const alreadyHit = new Set();
+            // Spin damage timer - apply damage every 0.25 seconds
+            game.player.spinDamageTimer += delta;
+            if (game.player.spinDamageTimer >= 0.25) {
+                game.player.spinDamageTimer = 0;
 
-            for (const enemy of game.enemies) {
-                if (!enemy.isActive) continue;
-                const dist = game.player.position.distanceTo(enemy.position);
-                if (dist < spinRange && spinDamage > 0) {
-                    // Apply electric shock with chain lightning!
-                    applyElectricShock(enemy, spinDamage, alreadyHit, 0);
+                // Spin damage = 1.25x regular punch damage
+                const spinRange = 2.5;
+                const spinDamage = Math.floor(game.stats.attack * 1.25);
+                const alreadyHit = new Set();
 
-                    // Small knockback push enemies away
-                    const toEnemy = new THREE.Vector3()
-                        .subVectors(enemy.position, game.player.position)
-                        .normalize();
-                    enemy.position.x += toEnemy.x * 0.5 * delta * game.player.spinSpeed;
-                    enemy.position.z += toEnemy.z * 0.5 * delta * game.player.spinSpeed;
+                for (const enemy of game.enemies) {
+                    if (!enemy.isActive) continue;
+                    const dist = game.player.position.distanceTo(enemy.position);
+                    if (dist < spinRange) {
+                        // Apply electric shock with chain lightning (35% reduction per chain)
+                        applySpinElectricShock(enemy, spinDamage, alreadyHit, 0);
+
+                        // Knockback push enemies away
+                        const toEnemy = new THREE.Vector3()
+                            .subVectors(enemy.position, game.player.position)
+                            .normalize();
+                        enemy.position.x += toEnemy.x * 1.5;
+                        enemy.position.z += toEnemy.z * 1.5;
+                    }
                 }
             }
         }
@@ -1855,6 +1862,82 @@ function applyElectricShock(enemy, baseDamage, alreadyHit, chainDepth = 0) {
                 setTimeout(() => {
                     applyElectricShock(closestEnemy, chainDamage, alreadyHit, chainDepth + 1);
                 }, 80);
+            }
+        }
+    }
+}
+
+// Apply electric shock for SPIN attack - only 35% reduction per chain (more powerful!)
+function applySpinElectricShock(enemy, baseDamage, alreadyHit, chainDepth = 0) {
+    const maxChainDepth = 5; // More chain jumps for spin
+    const chainRange = 4.0; // Longer range
+    const chainDamageMultiplier = 0.65; // Only 35% reduction per chain!
+
+    // Apply damage to this enemy
+    enemy.health -= baseDamage;
+
+    // Electric glow effect on enemy
+    if (enemy.bodyMaterial) {
+        const originalColor = enemy.bodyMaterial.color.getHex();
+        const originalEmissive = enemy.bodyMaterial.emissive.getHex();
+
+        // Bright cyan electric glow
+        enemy.bodyMaterial.emissive.setHex(0x00ffff);
+        enemy.bodyMaterial.emissiveIntensity = 2.5;
+        enemy.bodyMaterial.color.setHex(0xaaffff);
+
+        // Flicker effect
+        let flickerCount = 0;
+        const flickerInterval = setInterval(() => {
+            flickerCount++;
+            enemy.bodyMaterial.emissiveIntensity = flickerCount % 2 === 0 ? 2.5 : 0.8;
+            if (flickerCount >= 6) {
+                clearInterval(flickerInterval);
+                if (enemy.bodyMaterial) {
+                    enemy.bodyMaterial.emissive.setHex(originalEmissive);
+                    enemy.bodyMaterial.emissiveIntensity = 0.5;
+                    enemy.bodyMaterial.color.setHex(originalColor);
+                }
+            }
+        }, 40);
+    }
+
+    // Check if enemy died
+    if (enemy.health <= 0) {
+        enemy.isActive = false;
+        game.scene.remove(enemy);
+        game.enemies = game.enemies.filter(e => e !== enemy);
+        spawnEnemy();
+    }
+
+    // Mark as hit
+    alreadyHit.add(enemy);
+
+    // Chain to nearby enemies
+    if (chainDepth < maxChainDepth) {
+        let closestEnemy = null;
+        let closestDist = chainRange;
+
+        for (const otherEnemy of game.enemies) {
+            if (!otherEnemy.isActive || alreadyHit.has(otherEnemy)) continue;
+
+            const dist = enemy.position.distanceTo(otherEnemy.position);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestEnemy = otherEnemy;
+            }
+        }
+
+        if (closestEnemy) {
+            const chainDamage = Math.floor(baseDamage * chainDamageMultiplier);
+            if (chainDamage > 0) {
+                // Create lightning visual
+                createLightningBolt(enemy.position, closestEnemy.position);
+
+                // Apply chain damage with delay
+                setTimeout(() => {
+                    applySpinElectricShock(closestEnemy, chainDamage, alreadyHit, chainDepth + 1);
+                }, 60);
             }
         }
     }
