@@ -1005,15 +1005,17 @@ function updatePlayer(delta) {
             // Update spin speed based on momentum
             game.player.spinSpeed = game.player.spinMomentum * 3;
 
-            // Spin damage to nearby enemies
+            // Spin damage to nearby enemies - both regular AND chain lightning!
             const spinRange = 2.0;
             const spinDamage = Math.floor(game.stats.attack * 0.4 * delta * 10); // Damage over time
+            const alreadyHit = new Set();
 
             for (const enemy of game.enemies) {
                 if (!enemy.isActive) continue;
                 const dist = game.player.position.distanceTo(enemy.position);
                 if (dist < spinRange && spinDamage > 0) {
-                    enemy.health -= spinDamage;
+                    // Apply electric shock with chain lightning!
+                    applyElectricShock(enemy, spinDamage, alreadyHit, 0);
 
                     // Small knockback push enemies away
                     const toEnemy = new THREE.Vector3()
@@ -1021,28 +1023,13 @@ function updatePlayer(delta) {
                         .normalize();
                     enemy.position.x += toEnemy.x * 0.5 * delta * game.player.spinSpeed;
                     enemy.position.z += toEnemy.z * 0.5 * delta * game.player.spinSpeed;
-
-                    // Flash effect
-                    if (Math.random() < 0.1) {
-                        enemy.bodyMaterial.emissive.setHex(0x88ffff);
-                        setTimeout(() => {
-                            if (enemy.bodyMaterial) enemy.bodyMaterial.emissive.setHex(0xff4400);
-                        }, 50);
-                    }
-
-                    if (enemy.health <= 0) {
-                        enemy.isActive = false;
-                        game.scene.remove(enemy);
-                        game.enemies = game.enemies.filter(e => e !== enemy);
-                        spawnEnemy();
-                    }
                 }
             }
         }
     }
 
-    // Movement speed - slower while spinning
-    const spinSpeedMultiplier = game.player.isSpinning ? 0.5 : 1.0;
+    // Movement speed - FASTER while spinning (1.5x)
+    const spinSpeedMultiplier = game.player.isSpinning ? 1.5 : 1.0;
     const moveSpeed = (game.player.isDashing ? game.stats.speed * 3 : game.stats.speed) * spinSpeedMultiplier;
     const rotateSpeed = 3;
     let isMoving = false;
