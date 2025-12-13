@@ -373,19 +373,19 @@ function createPlayer() {
     guard.position.z = -0.22;
     weaponGroup.add(guard);
 
-    // Blade - extends forward (-Z) from guard
-    const bladeGeometry = new THREE.ConeGeometry(0.05, 0.85, 4);
+    // Blade - LONGER sword extending forward (-Z)
+    const bladeGeometry = new THREE.ConeGeometry(0.06, 1.5, 4); // Longer blade
     const bladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
-        emissiveIntensity: 0.5,
+        emissiveIntensity: 0.6,
         flatShading: true,
-        metalness: 0.8,
-        roughness: 0.2
+        metalness: 0.9,
+        roughness: 0.1
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.rotation.x = -Math.PI / 2; // Point forward (-Z)
-    blade.position.z = -0.67;
+    blade.position.z = -0.97; // Moved out for longer blade
     weaponGroup.add(blade);
 
     game.player.weapon = weaponGroup;
@@ -443,11 +443,39 @@ function createPlayer() {
 
     const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
     leftBlade.rotation.x = -Math.PI / 2;
-    leftBlade.position.z = -0.67;
+    leftBlade.position.z = -0.97; // Match longer blade position
     leftWeaponGroup.add(leftBlade);
 
     game.player.leftWeapon = leftWeaponGroup;
     leftWristPivot.add(leftWeaponGroup);
+
+    // SWORD TRAIL EFFECT - Zelda-style slash arc
+    const trailGeometry = new THREE.RingGeometry(0.8, 2.2, 16, 1, 0, Math.PI * 0.7);
+    const trailMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+    });
+    const slashTrail = new THREE.Mesh(trailGeometry, trailMaterial);
+    slashTrail.visible = false;
+    game.player.slashTrail = slashTrail;
+    game.player.mesh.add(slashTrail);
+
+    // Second trail for more effect
+    const trailGeometry2 = new THREE.RingGeometry(1.0, 2.0, 16, 1, 0, Math.PI * 0.6);
+    const trailMaterial2 = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+    });
+    const slashTrail2 = new THREE.Mesh(trailGeometry2, trailMaterial2);
+    slashTrail2.visible = false;
+    game.player.slashTrail2 = slashTrail2;
+    game.player.mesh.add(slashTrail2);
 
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
@@ -1117,6 +1145,34 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.rightKneePivot.rotation.x = 0.1;
         game.player.leftKneePivot.rotation.x = 0.1;
 
+        // SWORD TRAIL - Zelda style slash arc
+        if (game.player.slashTrail && slash > 0.1 && slash < 0.9) {
+            game.player.slashTrail.visible = true;
+            game.player.slashTrail2.visible = true;
+
+            // Position trail in front of player
+            game.player.slashTrail.position.set(0, 1.2, -1.0);
+            game.player.slashTrail2.position.set(0, 1.2, -1.0);
+
+            if (isRightHand) {
+                // Right hand slash: top-right to bottom-left
+                game.player.slashTrail.rotation.set(0.3 - slash * 0.6, 0, 0.8 - slash * 1.6);
+                game.player.slashTrail2.rotation.set(0.3 - slash * 0.6, 0, 0.8 - slash * 1.6);
+            } else {
+                // Left hand slash: top-left to bottom-right
+                game.player.slashTrail.rotation.set(0.3 - slash * 0.6, 0, -0.8 + slash * 1.6);
+                game.player.slashTrail2.rotation.set(0.3 - slash * 0.6, 0, -0.8 + slash * 1.6);
+            }
+
+            // Fade based on slash progress
+            const trailOpacity = Math.sin(slash * Math.PI) * 0.8;
+            game.player.slashTrail.material.opacity = trailOpacity;
+            game.player.slashTrail2.material.opacity = trailOpacity * 0.5;
+        } else {
+            if (game.player.slashTrail) game.player.slashTrail.visible = false;
+            if (game.player.slashTrail2) game.player.slashTrail2.visible = false;
+        }
+
         game.player.speedLines.forEach(line => line.visible = false);
     }
     // BLOCKING ANIMATION - Dual swords crossed in X formation
@@ -1278,6 +1334,10 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Reset torso
         game.player.torso.rotation.x = 0;
         game.player.torso.rotation.z = 0;
+
+        // Hide sword trail when not attacking
+        if (game.player.slashTrail) game.player.slashTrail.visible = false;
+        if (game.player.slashTrail2) game.player.slashTrail2.visible = false;
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
