@@ -976,31 +976,48 @@ function animateEnemy(enemy, delta) {
     const walkSpeed = 6;
     const walkAmplitude = 0.5;
 
-    // ATTACKING ANIMATION
+    // ATTACKING ANIMATION (smooth interpolation)
     if (enemy.isAttacking) {
         enemy.attackAnimTime += delta;
 
-        // Right arm thrusts forward (positive X = forward)
-        enemy.rightArmPivot.rotation.x = 1.5;
-        enemy.rightElbowPivot.rotation.x = 0.3;
+        // Animation phases: wind-up (0-0.15s), thrust (0.15-0.35s), hold (0.35-0.5s)
+        const t = enemy.attackAnimTime;
+        let attackProgress;
 
-        // Torso leans forward aggressively
-        enemy.torso.rotation.x = 0.3;
+        if (t < 0.15) {
+            // Wind-up phase: arm pulls back slightly
+            attackProgress = -0.3 * (t / 0.15);
+        } else if (t < 0.35) {
+            // Thrust phase: smooth interpolation from wind-up to full extension
+            const thrustT = (t - 0.15) / 0.2;
+            attackProgress = -0.3 + (1.8) * thrustT; // From -0.3 to 1.5
+        } else {
+            // Hold phase: full extension
+            attackProgress = 1.5;
+        }
 
-        // Left arm stays back for balance (negative = backward)
-        enemy.leftArmPivot.rotation.x = -0.5;
+        // Right arm thrusts forward smoothly
+        enemy.rightArmPivot.rotation.x = attackProgress;
+        enemy.rightElbowPivot.rotation.x = Math.max(0, attackProgress * 0.2);
 
-        // Legs brace
-        enemy.rightLegPivot.rotation.x = -0.2;
-        enemy.leftLegPivot.rotation.x = 0.2;
+        // Torso leans forward with the thrust
+        enemy.torso.rotation.x = Math.max(0, attackProgress * 0.2);
+
+        // Left arm stays back for balance
+        enemy.leftArmPivot.rotation.x = -0.3 - Math.max(0, attackProgress * 0.15);
+
+        // Legs brace during thrust
+        const braceAmount = Math.max(0, attackProgress / 1.5);
+        enemy.rightLegPivot.rotation.x = -0.2 * braceAmount;
+        enemy.leftLegPivot.rotation.x = 0.2 * braceAmount;
 
         // Eye pulses bright during attack
         if (enemy.eye) {
-            enemy.eye.material.emissiveIntensity = 1.5 + Math.sin(enemy.attackAnimTime * 20) * 0.5;
+            enemy.eye.material.emissiveIntensity = 1.5 + Math.sin(t * 20) * 0.5;
         }
 
         // Attack animation duration
-        if (enemy.attackAnimTime > 0.4) {
+        if (t > 0.5) {
             enemy.isAttacking = false;
             enemy.attackAnimTime = 0;
         }
@@ -1094,11 +1111,12 @@ function updateEnemies(delta) {
                 enemy.position.z += direction.z * enemy.speed * delta;
 
                 // Face the player (only rotate Y axis)
+                // Model's face is at -Z, so add PI to face toward player
                 const targetAngle = Math.atan2(
                     game.player.position.x - enemy.position.x,
                     game.player.position.z - enemy.position.z
                 );
-                enemy.rotation.y = targetAngle;
+                enemy.rotation.y = targetAngle + Math.PI;
             } else {
                 // In attack range
                 if (enemy.attackCooldown <= 0 && !enemy.isAttacking) {
