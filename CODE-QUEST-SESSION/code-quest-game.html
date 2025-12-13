@@ -93,7 +93,7 @@
     </div>
     
     <div id="controls">
-        W/S - Forward/Back | A/D - Rotate | L/R Click - Punch | Space - Kick | Middle - Dash | Shift - Block
+        W/S - Forward/Back | A/D - Rotate | L/R Click - Punch | Space - Kick | Middle - Dash | Shift - Block | Scroll Fast - SPIN!
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -218,6 +218,7 @@ function init() {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right-click menu
+    document.addEventListener('wheel', onMouseWheel); // Scroll for spin attack
     
     console.log('Starting animation loop...');
     
@@ -554,6 +555,12 @@ function createPlayer() {
     game.player.isKicking = false;
     game.player.kickCooldown = 0;
     game.player.kickProgress = 0;
+    // Spin attack state
+    game.player.isSpinning = false;
+    game.player.spinSpeed = 0; // Current spin speed
+    game.player.spinMomentum = 0; // Accumulated scroll momentum
+    game.player.lastScrollTime = 0;
+    game.player.spinRotation = 0; // Total rotation during spin
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -572,6 +579,47 @@ function createPlayer() {
         line.visible = false;
         game.player.speedLines.push(line);
         game.player.add(line);
+    }
+
+    // Tornado trail for spin attack (initially hidden)
+    game.player.tornadoRings = [];
+    const tornadoMaterial = new THREE.MeshBasicMaterial({
+        color: 0x88ffff,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+    });
+    for (let i = 0; i < 8; i++) {
+        const ringRadius = 0.8 + i * 0.15;
+        const ringGeometry = new THREE.TorusGeometry(ringRadius, 0.08, 6, 16);
+        const ring = new THREE.Mesh(ringGeometry, tornadoMaterial.clone());
+        ring.rotation.x = Math.PI / 2; // Horizontal
+        ring.position.y = 0.3 + i * 0.25; // Stack upward
+        ring.visible = false;
+        ring.userData.baseRadius = ringRadius;
+        ring.userData.height = 0.3 + i * 0.25;
+        game.player.tornadoRings.push(ring);
+        game.player.add(ring);
+    }
+
+    // Spin wind particles
+    game.player.spinParticles = [];
+    const particleMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending
+    });
+    for (let i = 0; i < 12; i++) {
+        const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
+        const particle = new THREE.Mesh(particleGeometry, particleMaterial.clone());
+        particle.visible = false;
+        particle.userData.angle = (i / 12) * Math.PI * 2;
+        particle.userData.height = Math.random() * 2;
+        particle.userData.radius = 1 + Math.random() * 0.5;
+        game.player.spinParticles.push(particle);
+        game.player.add(particle);
     }
 
     game.scene.add(game.player);
@@ -934,10 +982,68 @@ function updatePlayer(delta) {
     
     // Can't do anything with no energy
     if (game.stats.energy <= 0) {
+        stopSpin(); // Stop spinning if out of energy
         return;
     }
-    
-    const moveSpeed = game.player.isDashing ? game.stats.speed * 3 : game.stats.speed;
+
+    // Spin attack handling
+    if (game.player.isSpinning) {
+        // Decay momentum over time - need to keep scrolling to maintain spin
+        game.player.spinMomentum -= delta * 3;
+
+        // Stop spinning if momentum gets too low
+        if (game.player.spinMomentum <= 0.5) {
+            stopSpin();
+        } else {
+            // Drain energy while spinning (17 per second)
+            game.stats.energy -= 17 * delta;
+            if (game.stats.energy <= 0) {
+                game.stats.energy = 0;
+                stopSpin();
+            }
+
+            // Update spin speed based on momentum
+            game.player.spinSpeed = game.player.spinMomentum * 3;
+
+            // Spin damage to nearby enemies
+            const spinRange = 2.0;
+            const spinDamage = Math.floor(game.stats.attack * 0.4 * delta * 10); // Damage over time
+
+            for (const enemy of game.enemies) {
+                if (!enemy.isActive) continue;
+                const dist = game.player.position.distanceTo(enemy.position);
+                if (dist < spinRange && spinDamage > 0) {
+                    enemy.health -= spinDamage;
+
+                    // Small knockback push enemies away
+                    const toEnemy = new THREE.Vector3()
+                        .subVectors(enemy.position, game.player.position)
+                        .normalize();
+                    enemy.position.x += toEnemy.x * 0.5 * delta * game.player.spinSpeed;
+                    enemy.position.z += toEnemy.z * 0.5 * delta * game.player.spinSpeed;
+
+                    // Flash effect
+                    if (Math.random() < 0.1) {
+                        enemy.bodyMaterial.emissive.setHex(0x88ffff);
+                        setTimeout(() => {
+                            if (enemy.bodyMaterial) enemy.bodyMaterial.emissive.setHex(0xff4400);
+                        }, 50);
+                    }
+
+                    if (enemy.health <= 0) {
+                        enemy.isActive = false;
+                        game.scene.remove(enemy);
+                        game.enemies = game.enemies.filter(e => e !== enemy);
+                        spawnEnemy();
+                    }
+                }
+            }
+        }
+    }
+
+    // Movement speed - slower while spinning
+    const spinSpeedMultiplier = game.player.isSpinning ? 0.5 : 1.0;
+    const moveSpeed = (game.player.isDashing ? game.stats.speed * 3 : game.stats.speed) * spinSpeedMultiplier;
     const rotateSpeed = 3;
     let isMoving = false;
     let isMovingForward = false;
@@ -974,13 +1080,15 @@ function updatePlayer(delta) {
         if (game.stats.energy < 0) game.stats.energy = 0;
     }
     
-    // Kick ability (space bar)
+    // Kick ability (space bar) - exits spin
     if (game.keys[' ']) {
+        stopSpin();
         playerKick();
     }
-    
-    // Block ability (instant toggle - hold Shift to block, release to unblock)
+
+    // Block ability (instant toggle - hold Shift to block, release to unblock) - exits spin
     if (game.keys['shift']) {
+        stopSpin();
         if (!game.abilities.block.active) {
             game.abilities.block.active = true;
             // Change torso color to blue when blocking
@@ -1032,9 +1140,72 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
     const walkSpeed = 4;
     const walkAmplitude = 0.4;
+    const isSpinning = game.player.isSpinning;
 
+    // SPINNING ANIMATION - tornado spin attack
+    if (isSpinning) {
+        // Spin the torso rapidly
+        game.player.spinRotation += delta * game.player.spinSpeed;
+        game.player.torso.rotation.y = game.player.spinRotation;
+        game.player.torso.rotation.x = 0;
+
+        // Arms stretched out horizontally in opposite directions
+        game.player.rightArmPivot.rotation.x = Math.PI / 2; // Straight out
+        game.player.rightArmPivot.rotation.z = 0;
+        game.player.rightArmPivot.rotation.y = 0;
+        game.player.rightElbowPivot.rotation.x = 0; // Straightened
+
+        game.player.leftArmPivot.rotation.x = Math.PI / 2; // Straight out
+        game.player.leftArmPivot.rotation.z = 0;
+        game.player.leftArmPivot.rotation.y = 0;
+        game.player.leftElbowPivot.rotation.x = 0; // Straightened
+
+        // Fist trails show while spinning
+        if (game.player.rightFistTrail) {
+            game.player.rightFistTrail.material.opacity = 0.6;
+        }
+        if (game.player.leftFistTrail) {
+            game.player.leftFistTrail.material.opacity = 0.6;
+        }
+
+        // Legs together, slight crouch
+        game.player.rightLegPivot.rotation.x = 0.1;
+        game.player.leftLegPivot.rotation.x = 0.1;
+        game.player.rightKneePivot.rotation.x = 0.2;
+        game.player.leftKneePivot.rotation.x = 0.2;
+
+        // Hide speed lines
+        game.player.speedLines.forEach(line => line.visible = false);
+
+        // Animate tornado rings
+        if (game.player.tornadoRings) {
+            game.player.tornadoRings.forEach((ring, i) => {
+                ring.visible = true;
+                // Rings spin opposite to body
+                ring.rotation.z = -game.player.spinRotation * 0.5 + i * 0.3;
+                // Pulse size based on spin speed
+                const pulse = 1 + Math.sin(game.player.animTime * 8 + i) * 0.1;
+                ring.scale.set(pulse, pulse, 1);
+                // Fade based on height
+                ring.material.opacity = 0.5 - i * 0.04;
+            });
+        }
+
+        // Animate spin particles
+        if (game.player.spinParticles) {
+            game.player.spinParticles.forEach((particle, i) => {
+                particle.visible = true;
+                const angle = particle.userData.angle + game.player.spinRotation * 1.5;
+                const radius = particle.userData.radius + Math.sin(game.player.animTime * 5 + i) * 0.2;
+                particle.position.x = Math.cos(angle) * radius;
+                particle.position.z = Math.sin(angle) * radius;
+                particle.position.y = particle.userData.height + Math.sin(game.player.animTime * 3 + i) * 0.3;
+                particle.material.opacity = 0.4 + Math.random() * 0.3;
+            });
+        }
+    }
     // KICKING ANIMATION - powerful knockback kick
-    if (isKicking) {
+    else if (isKicking) {
         const kickProg = game.player.kickProgress;
         const kickExtend = kickProg < 0.4 ? kickProg * 2.5 : 1; // Quick extend
 
@@ -1847,17 +2018,60 @@ function onMouseMove(event) {
 function onMouseDown(event) {
     // Left click (button 0) = left arm, Right click (button 2) = right arm, Middle click (button 1) = dash
     if (event.button === 0) {
+        stopSpin(); // Exit spin on punch
         playerAttack(false); // Left arm
     } else if (event.button === 2) {
+        stopSpin(); // Exit spin on punch
         playerAttack(true);  // Right arm
     } else if (event.button === 1) {
-        // Dash on middle click
+        // Dash on middle click - also exits spin
+        stopSpin();
         if (!game.player.isDashing && game.stats.energy >= 20) {
             game.player.isDashing = true;
             game.player.dashTime = 0.3;
             game.abilities.dash.cooldown = game.abilities.dash.maxCooldown;
             game.stats.energy -= 20;
         }
+    }
+}
+
+// Mouse wheel for spin attack
+function onMouseWheel(event) {
+    if (!game.player) return;
+
+    const now = Date.now();
+    const timeSinceLastScroll = now - game.player.lastScrollTime;
+    game.player.lastScrollTime = now;
+
+    // Only trigger if scrolling fast enough (within 150ms between scrolls)
+    if (timeSinceLastScroll < 150) {
+        // Add momentum based on scroll intensity
+        const scrollIntensity = Math.min(Math.abs(event.deltaY), 100) / 100;
+        game.player.spinMomentum += scrollIntensity * 2;
+        game.player.spinMomentum = Math.min(game.player.spinMomentum, 10); // Cap momentum
+
+        // Start spinning if momentum is high enough and have energy
+        if (game.player.spinMomentum >= 2 && game.stats.energy >= 5) {
+            game.player.isSpinning = true;
+            game.player.spinSpeed = game.player.spinMomentum * 3;
+        }
+    }
+}
+
+// Stop spinning
+function stopSpin() {
+    if (!game.player) return;
+    game.player.isSpinning = false;
+    game.player.spinSpeed = 0;
+    game.player.spinMomentum = 0;
+    game.player.spinRotation = 0;
+
+    // Hide tornado effects
+    if (game.player.tornadoRings) {
+        game.player.tornadoRings.forEach(ring => ring.visible = false);
+    }
+    if (game.player.spinParticles) {
+        game.player.spinParticles.forEach(p => p.visible = false);
     }
 }
 
