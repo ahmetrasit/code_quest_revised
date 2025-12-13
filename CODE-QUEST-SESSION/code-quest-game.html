@@ -368,15 +368,21 @@ function createPlayer() {
     game.player.rightLowerArm = rightLowerArm;
     rightElbowPivot.add(rightLowerArm);
 
-    // WEAPON (child of right lower arm)
+    // WRIST PIVOT (allows weapon to stay forward during arm rotation)
+    const rightWristPivot = new THREE.Group();
+    rightWristPivot.position.y = -0.25; // At end of lower arm (wrist position)
+    rightLowerArm.add(rightWristPivot);
+    game.player.rightWristPivot = rightWristPivot;
+
+    // WEAPON (child of wrist pivot - can be counter-rotated)
     const weaponHandle = new THREE.BoxGeometry(0.15, 0.15, 0.6);
     const weaponHandleMaterial = new THREE.MeshStandardMaterial({
         color: 0x888888,
         metalness: 0.5
     });
     const handle = new THREE.Mesh(weaponHandle, weaponHandleMaterial);
-    handle.position.set(0, -0.25, -0.3); // At end of lower arm
-    rightLowerArm.add(handle);
+    handle.position.set(0, 0, -0.3); // Relative to wrist
+    rightWristPivot.add(handle);
 
     const weaponBlade = new THREE.BoxGeometry(0.3, 0.1, 1.2);
     const weaponBladeMaterial = new THREE.MeshStandardMaterial({
@@ -386,8 +392,8 @@ function createPlayer() {
         metalness: 0.8
     });
     game.player.weapon = new THREE.Mesh(weaponBlade, weaponBladeMaterial);
-    game.player.weapon.position.set(0, -0.25, -0.9); // Extended from handle
-    rightLowerArm.add(game.player.weapon);
+    game.player.weapon.position.set(0, 0, -0.9); // Extended from handle
+    rightWristPivot.add(game.player.weapon);
 
     // LEFT ARM HIERARCHY
     const leftArmPivot = new THREE.Group();
@@ -917,6 +923,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         if (isAttacking) {
             game.player.rightArmPivot.rotation.x = Math.PI / 2;
             game.player.rightElbowPivot.rotation.x = 0;
+            // Counter-rotate wrist so sword stays pointing forward
+            game.player.rightWristPivot.rotation.x = -Math.PI / 2;
         }
     }
     // ATTACKING ANIMATION - Pulley/Piston lunge style (CHECK BEFORE BLOCKING)
@@ -927,6 +935,10 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         // Elbow STRAIGHTENS for maximum reach - like a telescoping piston
         game.player.rightElbowPivot.rotation.x = 0;  // Fully straight
+
+        // WRIST counter-rotates to keep sword pointing FORWARD (not down)
+        // Shoulder +90° would make sword point down, so wrist -90° corrects it
+        game.player.rightWristPivot.rotation.x = -Math.PI / 2;
 
         // Torso leans into the lunge
         game.player.torso.rotation.x = 0.3;
@@ -952,6 +964,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.leftArmPivot.rotation.z = 0.3;    // Slight outward tilt
         game.player.rightElbowPivot.rotation.x = 0.8; // Bend toward body
         game.player.leftElbowPivot.rotation.x = 0.8;
+        game.player.rightWristPivot.rotation.x = 0;   // Wrist normal
 
         // Legs still animate if walking
         if (isMovingForward || isMovingBackward) {
@@ -990,6 +1003,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = 0;
         game.player.leftElbowPivot.rotation.x = 0;
+        game.player.rightWristPivot.rotation.x = 0; // Wrist normal
 
         // Torso upright and smooth
         game.player.torso.rotation.x = 0;
@@ -1008,6 +1022,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = -0.2;
         game.player.leftElbowPivot.rotation.x = -0.2;
+        game.player.rightWristPivot.rotation.x = 0; // Wrist normal
 
         // Legs walk (rotate hip pivots)
         game.player.rightLegPivot.rotation.x = walkCycle * walkAmplitude;
@@ -1036,6 +1051,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = 0;
         game.player.leftElbowPivot.rotation.x = 0;
+        game.player.rightWristPivot.rotation.x = 0; // Wrist normal
 
         // Reset legs
         game.player.rightLegPivot.rotation.x = 0;
@@ -1058,6 +1074,9 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.leftArmPivot.rotation.z = 0;
         game.player.rightElbowPivot.rotation.x = 0;
         game.player.leftElbowPivot.rotation.x = 0;
+
+        // Wrist at rest (sword points forward in -Z)
+        game.player.rightWristPivot.rotation.x = 0;
 
         // Legs at rest
         game.player.rightLegPivot.rotation.x = 0;
