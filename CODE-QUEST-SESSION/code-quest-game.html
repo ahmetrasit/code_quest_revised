@@ -1824,9 +1824,9 @@ function playerKick() {
                 }, 150);
             }
 
-            // Moderate knockback for escape
-            enemy.position.x += toEnemy.x * 1.4;
-            enemy.position.z += toEnemy.z * 1.4;
+            // Strong knockback - stacks with punches for massive combo!
+            enemy.position.x += toEnemy.x * 5;
+            enemy.position.z += toEnemy.z * 5;
         }
     }
 }
