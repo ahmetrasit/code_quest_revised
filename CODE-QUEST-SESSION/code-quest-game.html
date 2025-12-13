@@ -385,6 +385,7 @@ function createPlayer() {
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.rotation.x = Math.PI / 2; // Point forward (-Z), tip first
+    blade.rotation.y = Math.PI / 4; // Rotate so flat part faces up
     blade.position.z = -0.97; // Moved out for longer blade
     weaponGroup.add(blade);
 
@@ -443,6 +444,7 @@ function createPlayer() {
 
     const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
     leftBlade.rotation.x = Math.PI / 2; // Point forward, tip first
+    leftBlade.rotation.y = Math.PI / 4; // Rotate so flat part faces up
     leftBlade.position.z = -0.97; // Match longer blade position
     leftWeaponGroup.add(leftBlade);
 
@@ -1101,40 +1103,42 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         game.player.lastAttackSlash = slash;
 
         if (isRightHand) {
-            // RIGHT ARM - Horizontal slash: right to left
+            // RIGHT ARM - Only upper arm pivot moves (creates arc)
 
-            game.player.rightArmPivot.rotation.x = 1.3; // Arm forward at shoulder height (constant)
-            game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.8; // Right -> left (horizontal)
+            game.player.rightArmPivot.rotation.x = 1.4; // Arm forward
+            game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.8; // Sweep right to left
             game.player.rightArmPivot.rotation.y = 0;
 
-            game.player.rightElbowPivot.rotation.x = -0.2;
+            // Keep arm straight - no elbow or wrist bend
+            game.player.rightElbowPivot.rotation.x = 0;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
             // Left arm tucked
             game.player.leftArmPivot.rotation.x = 0.3;
             game.player.leftArmPivot.rotation.z = 0.3;
-            game.player.leftElbowPivot.rotation.x = -0.8;
+            game.player.leftElbowPivot.rotation.x = -0.6;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = -0.2 + slash * 0.4; // Slight twist
+            game.player.torso.rotation.y = -0.15 + slash * 0.3;
 
         } else {
-            // LEFT ARM - Horizontal slash: left to right
+            // LEFT ARM - Only upper arm pivot moves (creates arc)
 
-            game.player.leftArmPivot.rotation.x = 1.3; // Arm forward at shoulder height (constant)
-            game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.8; // Left -> right (horizontal)
+            game.player.leftArmPivot.rotation.x = 1.4; // Arm forward
+            game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.8; // Sweep left to right
             game.player.leftArmPivot.rotation.y = 0;
 
-            game.player.leftElbowPivot.rotation.x = -0.2;
+            // Keep arm straight - no elbow or wrist bend
+            game.player.leftElbowPivot.rotation.x = 0;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
             // Right arm tucked
             game.player.rightArmPivot.rotation.x = 0.3;
             game.player.rightArmPivot.rotation.z = -0.3;
-            game.player.rightElbowPivot.rotation.x = -0.8;
+            game.player.rightElbowPivot.rotation.x = -0.6;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = 0.2 - slash * 0.4; // Slight twist
+            game.player.torso.rotation.y = 0.15 - slash * 0.3;
         }
 
         game.player.torso.rotation.x = 0.05;
