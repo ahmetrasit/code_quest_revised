@@ -1060,24 +1060,23 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Diagonal 45° slash
+    // ATTACKING ANIMATION - Diagonal 45° slash (SLOW for visibility)
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
 
-        // Smooth slash
-        const slashRaw = Math.min(1, swingProg / 0.5);
-        const slash = 1 - Math.pow(1 - slashRaw, 2); // Ease out
+        // SLOW - takes full animation time
+        const slash = Math.min(1, swingProg / 1.0);
 
         if (isRightHand) {
-            // RIGHT ARM - Diagonal slash at 45°: up-right to down-left
+            // RIGHT ARM - Diagonal 45°: starts up-right, ends down-left
 
-            game.player.rightArmPivot.rotation.x = 0.3 + slash * 1.2; // Up -> down
-            game.player.rightArmPivot.rotation.z = -0.8 + slash * 1.2; // Right -> left (same rate = 45°)
+            game.player.rightArmPivot.rotation.x = 0.0 + slash * 1.8; // Up -> down (big motion)
+            game.player.rightArmPivot.rotation.z = -1.0 + slash * 1.8; // Right -> left (same = 45°)
             game.player.rightArmPivot.rotation.y = 0;
 
-            game.player.rightElbowPivot.rotation.x = -0.2;
-            game.player.rightWristPivot.rotation.set(0, 0, 0); // Sword straight
+            game.player.rightElbowPivot.rotation.x = -0.1;
+            game.player.rightWristPivot.rotation.set(0, 0, 0);
 
             // Left arm tucked
             game.player.leftArmPivot.rotation.x = 0.3;
@@ -1088,14 +1087,14 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.torso.rotation.y = 0;
 
         } else {
-            // LEFT ARM - Diagonal slash at 45°: up-left to down-right
+            // LEFT ARM - Diagonal 45°: starts up-left, ends down-right
 
-            game.player.leftArmPivot.rotation.x = 0.3 + slash * 1.2; // Up -> down
-            game.player.leftArmPivot.rotation.z = 0.8 - slash * 1.2; // Left -> right (same rate = 45°)
+            game.player.leftArmPivot.rotation.x = 0.0 + slash * 1.8; // Up -> down
+            game.player.leftArmPivot.rotation.z = 1.0 - slash * 1.8; // Left -> right (same = 45°)
             game.player.leftArmPivot.rotation.y = 0;
 
-            game.player.leftElbowPivot.rotation.x = -0.2;
-            game.player.leftWristPivot.rotation.set(0, 0, 0); // Sword straight
+            game.player.leftElbowPivot.rotation.x = -0.1;
+            game.player.leftWristPivot.rotation.set(0, 0, 0);
 
             // Right arm tucked
             game.player.rightArmPivot.rotation.x = 0.3;
