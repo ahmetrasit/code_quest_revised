@@ -332,65 +332,34 @@ function createPlayer() {
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // Hand/fist at wrist
-    const handGeometry = new THREE.IcosahedronGeometry(0.08, 0);
+    // Hand/fist at wrist - GLOWING ENERGY FIST
+    const handGeometry = new THREE.IcosahedronGeometry(0.1, 0);
     const handMaterial = new THREE.MeshStandardMaterial({
-        color: 0x3a7bc8,
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 0.8,
         flatShading: true,
-        metalness: 0.2,
-        roughness: 0.8
+        metalness: 0.3,
+        roughness: 0.2
     });
     const rightHand = new THREE.Mesh(handGeometry, handMaterial);
     rightHand.position.y = -0.08;
     rightWristPivot.add(rightHand);
+    game.player.rightHand = rightHand;
 
-    // WEAPON GROUP - sword extends FORWARD (-Z) from hand
-    const weaponGroup = new THREE.Group();
-    weaponGroup.position.y = -0.08; // At hand position
-
-    // Handle - extends forward from hand
-    const handleGeometry = new THREE.CylinderGeometry(0.03, 0.035, 0.2, 6);
-    const handleMaterial = new THREE.MeshStandardMaterial({
-        color: 0x554433,
-        flatShading: true,
-        metalness: 0.4,
-        roughness: 0.6
-    });
-    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-    handle.rotation.x = Math.PI / 2; // Rotate to point forward
-    handle.position.z = -0.1;
-    weaponGroup.add(handle);
-
-    // Guard - cross guard
-    const guardGeometry = new THREE.OctahedronGeometry(0.06, 0);
-    const guardMaterial = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        flatShading: true,
-        metalness: 0.7
-    });
-    const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-    guard.scale.set(1.5, 0.3, 0.4);
-    guard.position.z = -0.22;
-    weaponGroup.add(guard);
-
-    // Blade - LONGER sword extending forward (-Z)
-    const bladeGeometry = new THREE.ConeGeometry(0.06, 1.5, 4); // Longer blade
-    const bladeMaterial = new THREE.MeshStandardMaterial({
+    // Right fist trail - extends behind fist when punching
+    const fistTrailGeometry = new THREE.CylinderGeometry(0.02, 0.08, 0.8, 8);
+    const fistTrailMaterial = new THREE.MeshBasicMaterial({
         color: 0x00ffff,
-        emissive: 0x00ffff,
-        emissiveIntensity: 0.6,
-        flatShading: true,
-        metalness: 0.9,
-        roughness: 0.1
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending
     });
-    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-    blade.rotation.x = Math.PI / 2; // Point forward (-Z), tip first
-    blade.rotation.y = Math.PI / 2; // Rotate blade 90 degrees
-    blade.position.z = -0.97; // Moved out for longer blade
-    weaponGroup.add(blade);
-
-    game.player.weapon = weaponGroup;
-    rightWristPivot.add(weaponGroup);
+    const rightFistTrail = new THREE.Mesh(fistTrailGeometry, fistTrailMaterial);
+    rightFistTrail.rotation.x = Math.PI / 2; // Point along Z axis
+    rightFistTrail.position.z = 0.4; // Behind the fist
+    rightWristPivot.add(rightFistTrail);
+    game.player.rightFistTrail = rightFistTrail;
 
     // LEFT ARM HIERARCHY
     const leftArmPivot = new THREE.Group();
@@ -423,61 +392,18 @@ function createPlayer() {
     leftLowerArm.add(leftWristPivot);
     game.player.leftWristPivot = leftWristPivot;
 
-    // Left hand
+    // Left hand - GLOWING ENERGY FIST
     const leftHand = new THREE.Mesh(handGeometry.clone(), handMaterial.clone());
     leftHand.position.y = -0.08;
     leftWristPivot.add(leftHand);
+    game.player.leftHand = leftHand;
 
-    // LEFT SWORD - mirror of right sword
-    const leftWeaponGroup = new THREE.Group();
-    leftWeaponGroup.position.y = -0.08;
-
-    const leftHandle = new THREE.Mesh(handleGeometry.clone(), handleMaterial.clone());
-    leftHandle.rotation.x = Math.PI / 2;
-    leftHandle.position.z = -0.1;
-    leftWeaponGroup.add(leftHandle);
-
-    const leftGuard = new THREE.Mesh(guardGeometry.clone(), guardMaterial.clone());
-    leftGuard.scale.set(1.5, 0.3, 0.4);
-    leftGuard.position.z = -0.22;
-    leftWeaponGroup.add(leftGuard);
-
-    const leftBlade = new THREE.Mesh(bladeGeometry.clone(), bladeMaterial.clone());
-    leftBlade.rotation.x = Math.PI / 2; // Point forward, tip first
-    leftBlade.rotation.y = Math.PI / 2; // Rotate blade 90 degrees
-    leftBlade.position.z = -0.97; // Match longer blade position
-    leftWeaponGroup.add(leftBlade);
-
-    game.player.leftWeapon = leftWeaponGroup;
-    leftWristPivot.add(leftWeaponGroup);
-
-    // SWORD TRAIL EFFECT - Zelda-style slash arc
-    const trailGeometry = new THREE.RingGeometry(0.8, 2.2, 16, 1, 0, Math.PI * 0.7);
-    const trailMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
-        transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending
-    });
-    const slashTrail = new THREE.Mesh(trailGeometry, trailMaterial);
-    slashTrail.visible = false;
-    game.player.slashTrail = slashTrail;
-    torso.add(slashTrail); // Add to torso instead of mesh
-
-    // Second trail for more effect
-    const trailGeometry2 = new THREE.RingGeometry(1.0, 2.0, 16, 1, 0, Math.PI * 0.6);
-    const trailMaterial2 = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.4,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending
-    });
-    const slashTrail2 = new THREE.Mesh(trailGeometry2, trailMaterial2);
-    slashTrail2.visible = false;
-    game.player.slashTrail2 = slashTrail2;
-    torso.add(slashTrail2); // Add to torso instead of mesh
+    // Left fist trail - extends behind fist when punching
+    const leftFistTrail = new THREE.Mesh(fistTrailGeometry.clone(), fistTrailMaterial.clone());
+    leftFistTrail.rotation.x = Math.PI / 2;
+    leftFistTrail.position.z = 0.4;
+    leftWristPivot.add(leftFistTrail);
+    game.player.leftFistTrail = leftFistTrail;
 
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
@@ -1090,101 +1016,86 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Horizontal slash
+    // ATTACKING ANIMATION - Alternating forward punches
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
 
-        // Animation timing
-        const slash = Math.min(1, swingProg / 1.0);
+        // Punch timing - quick extend, hold briefly
+        const punch = Math.min(1, swingProg / 0.8);
+        const punchExtend = punch < 0.5 ? punch * 2 : 1; // Quick extend
+        const punchHold = punch >= 0.5 ? 1 : punch * 2; // Hold at end
 
-        // Store end position for next attack
+        // Store for next attack
         game.player.lastAttackHand = isRightHand ? 'right' : 'left';
-        game.player.lastAttackSlash = slash;
+        game.player.lastAttackSlash = punch;
 
         if (isRightHand) {
-            // RIGHT ARM - Only upper arm pivot moves (creates arc)
-
-            game.player.rightArmPivot.rotation.x = 1.4; // Arm forward
-            game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.8; // Sweep right to left
+            // RIGHT ARM - Forward punch
+            game.player.rightArmPivot.rotation.x = 0.3 + punchExtend * 1.2; // Arm extends forward
+            game.player.rightArmPivot.rotation.z = -0.2;
             game.player.rightArmPivot.rotation.y = 0;
-
-            // Keep arm straight - no elbow or wrist bend
-            game.player.rightElbowPivot.rotation.x = 0;
+            game.player.rightElbowPivot.rotation.x = -0.3 + punchExtend * 0.3; // Arm straightens
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            // Left arm tucked
-            game.player.leftArmPivot.rotation.x = 0.3;
-            game.player.leftArmPivot.rotation.z = 0.3;
-            game.player.leftElbowPivot.rotation.x = -0.6;
+            // Left arm ready position
+            game.player.leftArmPivot.rotation.x = 0.5;
+            game.player.leftArmPivot.rotation.z = 0.2;
+            game.player.leftElbowPivot.rotation.x = -0.8;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = -0.15 + slash * 0.3;
+            // Torso twists into punch
+            game.player.torso.rotation.y = -0.2 * punchExtend;
+
+            // Fist trail - visible during punch
+            if (game.player.rightFistTrail) {
+                const trailOpacity = punchExtend * (1 - punch * 0.5) * 0.8;
+                game.player.rightFistTrail.material.opacity = trailOpacity;
+            }
+            if (game.player.leftFistTrail) {
+                game.player.leftFistTrail.material.opacity = 0;
+            }
 
         } else {
-            // LEFT ARM - Only upper arm pivot moves (creates arc)
-
-            game.player.leftArmPivot.rotation.x = 1.4; // Arm forward
-            game.player.leftArmPivot.rotation.z = 0.9 - slash * 1.8; // Sweep left to right
+            // LEFT ARM - Forward punch
+            game.player.leftArmPivot.rotation.x = 0.3 + punchExtend * 1.2;
+            game.player.leftArmPivot.rotation.z = 0.2;
             game.player.leftArmPivot.rotation.y = 0;
-
-            // Keep arm straight - no elbow or wrist bend
-            game.player.leftElbowPivot.rotation.x = 0;
+            game.player.leftElbowPivot.rotation.x = -0.3 + punchExtend * 0.3;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            // Right arm tucked
-            game.player.rightArmPivot.rotation.x = 0.3;
-            game.player.rightArmPivot.rotation.z = -0.3;
-            game.player.rightElbowPivot.rotation.x = -0.6;
+            // Right arm ready position
+            game.player.rightArmPivot.rotation.x = 0.5;
+            game.player.rightArmPivot.rotation.z = -0.2;
+            game.player.rightElbowPivot.rotation.x = -0.8;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = 0.15 - slash * 0.3;
+            // Torso twists into punch
+            game.player.torso.rotation.y = 0.2 * punchExtend;
+
+            // Fist trail - visible during punch
+            if (game.player.leftFistTrail) {
+                const trailOpacity = punchExtend * (1 - punch * 0.5) * 0.8;
+                game.player.leftFistTrail.material.opacity = trailOpacity;
+            }
+            if (game.player.rightFistTrail) {
+                game.player.rightFistTrail.material.opacity = 0;
+            }
         }
 
-        game.player.torso.rotation.x = 0.05;
+        game.player.torso.rotation.x = 0.1 * punchExtend;
 
-        // Legs stable
-        game.player.rightLegPivot.rotation.x = 0.1;
-        game.player.leftLegPivot.rotation.x = 0.1;
+        // Legs stable, slight lunge
+        game.player.rightLegPivot.rotation.x = isRightHand ? 0.15 * punchExtend : 0;
+        game.player.leftLegPivot.rotation.x = isRightHand ? 0 : 0.15 * punchExtend;
         game.player.rightKneePivot.rotation.x = 0.1;
         game.player.leftKneePivot.rotation.x = 0.1;
 
-        // SWORD TRAIL - Horizontal arc that follows sword sweep
-        if (game.player.slashTrail && slash > 0.1 && slash < 0.85) {
-            game.player.slashTrail.visible = true;
-            game.player.slashTrail2.visible = true;
-
-            // Position trail in front of player at chest height
-            game.player.slashTrail.position.set(0, 0.2, -1.0);
-            game.player.slashTrail2.position.set(0, 0.2, -1.0);
-
-            // Trail lies flat (horizontal plane), rotates Y to follow sword arc
-            if (isRightHand) {
-                // Right hand: sweeps right to left, trail shows arc
-                const trailY = -0.5 + slash * 1.0; // Rotate to follow sword
-                game.player.slashTrail.rotation.set(Math.PI / 2, trailY, 0);
-                game.player.slashTrail2.rotation.set(Math.PI / 2, trailY, 0);
-            } else {
-                // Left hand: sweeps left to right
-                const trailY = 0.5 - slash * 1.0;
-                game.player.slashTrail.rotation.set(Math.PI / 2, trailY, 0);
-                game.player.slashTrail2.rotation.set(Math.PI / 2, trailY, 0);
-            }
-
-            // Fade in quickly, fade out at end
-            const trailOpacity = Math.min(slash * 3, 1) * (1 - Math.pow(slash, 2)) * 0.9;
-            game.player.slashTrail.material.opacity = trailOpacity;
-            game.player.slashTrail2.material.opacity = trailOpacity * 0.6;
-        } else {
-            if (game.player.slashTrail) game.player.slashTrail.visible = false;
-            if (game.player.slashTrail2) game.player.slashTrail2.visible = false;
-        }
-
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // BLOCKING ANIMATION - Dual swords crossed in X formation
+    // BLOCKING ANIMATION - Fists raised in guard position
     else if (isBlocking) {
-        // Arms cross in front forming X with swords
+        // Arms up in defensive position
         game.player.rightArmPivot.rotation.x = 0.9;   // Forward
         game.player.rightArmPivot.rotation.z = -0.5;  // Cross toward center
         game.player.leftArmPivot.rotation.x = 0.9;    // Forward
@@ -1289,41 +1200,45 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // IDLE - Stay at attack end position if just attacked
+    // IDLE - Stay at punch end position if just attacked
     else {
         // Gentle idle breathing
         const breathCycle = Math.sin(game.player.animTime * 2);
         game.player.torso.position.y = 1.5 + breathCycle * 0.02;
 
-        // If just finished attacking, stay at end position (horizontal)
+        // Hide fist trails when idle
+        if (game.player.rightFistTrail) game.player.rightFistTrail.material.opacity = 0;
+        if (game.player.leftFistTrail) game.player.leftFistTrail.material.opacity = 0;
+
+        // If just finished attacking, stay at extended punch position
         if (game.player.lastAttackHand === 'right') {
-            // Right arm stays at horizontal end position (left side)
-            game.player.rightArmPivot.rotation.x = 1.3;
-            game.player.rightArmPivot.rotation.z = 0.9; // Ended on left side
-            game.player.rightElbowPivot.rotation.x = -0.2;
+            // Right arm stays extended
+            game.player.rightArmPivot.rotation.x = 1.5;
+            game.player.rightArmPivot.rotation.z = -0.2;
+            game.player.rightElbowPivot.rotation.x = 0;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
-            // Left arm tucked
-            game.player.leftArmPivot.rotation.x = 0.3;
-            game.player.leftArmPivot.rotation.z = 0.3;
+            // Left arm ready
+            game.player.leftArmPivot.rotation.x = 0.5;
+            game.player.leftArmPivot.rotation.z = 0.2;
             game.player.leftElbowPivot.rotation.x = -0.8;
         } else if (game.player.lastAttackHand === 'left') {
-            // Left arm stays at horizontal end position (right side)
-            game.player.leftArmPivot.rotation.x = 1.3;
-            game.player.leftArmPivot.rotation.z = -0.9; // Ended on right side
-            game.player.leftElbowPivot.rotation.x = -0.2;
+            // Left arm stays extended
+            game.player.leftArmPivot.rotation.x = 1.5;
+            game.player.leftArmPivot.rotation.z = 0.2;
+            game.player.leftElbowPivot.rotation.x = 0;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
-            // Right arm tucked
-            game.player.rightArmPivot.rotation.x = 0.3;
-            game.player.rightArmPivot.rotation.z = -0.3;
+            // Right arm ready
+            game.player.rightArmPivot.rotation.x = 0.5;
+            game.player.rightArmPivot.rotation.z = -0.2;
             game.player.rightElbowPivot.rotation.x = -0.8;
         } else {
-            // No attack yet - arms at rest
-            game.player.rightArmPivot.rotation.x = 0;
-            game.player.leftArmPivot.rotation.x = 0;
-            game.player.rightArmPivot.rotation.z = 0;
-            game.player.leftArmPivot.rotation.z = 0;
-            game.player.rightElbowPivot.rotation.x = 0;
-            game.player.leftElbowPivot.rotation.x = 0;
+            // No attack yet - fighting stance
+            game.player.rightArmPivot.rotation.x = 0.5;
+            game.player.leftArmPivot.rotation.x = 0.5;
+            game.player.rightArmPivot.rotation.z = -0.2;
+            game.player.leftArmPivot.rotation.z = 0.2;
+            game.player.rightElbowPivot.rotation.x = -0.8;
+            game.player.leftElbowPivot.rotation.x = -0.8;
         }
 
         // Wrist at rest
@@ -1341,10 +1256,6 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         // Reset torso
         game.player.torso.rotation.x = 0;
         game.player.torso.rotation.z = 0;
-
-        // Hide sword trail when not attacking
-        if (game.player.slashTrail) game.player.slashTrail.visible = false;
-        if (game.player.slashTrail2) game.player.slashTrail2.visible = false;
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
