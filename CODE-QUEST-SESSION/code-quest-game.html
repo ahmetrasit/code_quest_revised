@@ -520,21 +520,48 @@ function spawnEnemy() {
     enemy.rightLowerArm = rightLowerArm;
     rightElbowPivot.add(rightLowerArm);
 
-    // Weapon (spike on right hand)
-    const weaponGeometry = new THREE.ConeGeometry(0.12, 0.5, 4);
-    const weaponMaterial = new THREE.MeshStandardMaterial({
+    // Weapon (3-fingered claw on right hand)
+    const clawMaterial = new THREE.MeshStandardMaterial({
         color: 0xff6600,
         emissive: 0xff6600,
         emissiveIntensity: 0.6,
         metalness: 0.7
     });
-    const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-    // Cone points +Y by default. Rotate -90° around X to point toward -Z (forward)
-    // Then the spike extends from the fist when arm is thrust forward
-    weapon.rotation.x = -Math.PI / 2;
-    weapon.position.set(0, -0.3, 0); // At the fist, pointing outward from hand
-    enemy.weapon = weapon;
-    rightLowerArm.add(weapon);
+
+    // Claw container group
+    const claw = new THREE.Group();
+    claw.position.set(0, -0.35, 0); // At the fist
+
+    // Palm/base of claw
+    const palmGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.15);
+    const palm = new THREE.Mesh(palmGeometry, clawMaterial);
+    claw.add(palm);
+
+    // Three claw fingers - spread out in a grabbing pose
+    const fingerGeometry = new THREE.ConeGeometry(0.04, 0.35, 6);
+
+    // Center finger (points straight forward toward -Z)
+    const centerFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
+    centerFinger.rotation.x = -Math.PI / 2; // Point toward -Z
+    centerFinger.position.set(0, 0, -0.2);
+    claw.add(centerFinger);
+
+    // Left finger (angled outward)
+    const leftFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
+    leftFinger.rotation.x = -Math.PI / 2;
+    leftFinger.rotation.z = 0.4; // Angle outward
+    leftFinger.position.set(-0.08, 0, -0.18);
+    claw.add(leftFinger);
+
+    // Right finger (angled outward)
+    const rightFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
+    rightFinger.rotation.x = -Math.PI / 2;
+    rightFinger.rotation.z = -0.4; // Angle outward
+    rightFinger.position.set(0.08, 0, -0.18);
+    claw.add(rightFinger);
+
+    enemy.weapon = claw;
+    rightLowerArm.add(claw);
 
     // LEFT ARM HIERARCHY
     const leftArmPivot = new THREE.Group();
@@ -846,18 +873,28 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
-    // ATTACKING ANIMATION
+    // ATTACKING ANIMATION - Pulley/Piston lunge style
     else if (isAttacking) {
-        // Right arm extends forward (positive X rotation swings arm forward)
-        game.player.rightArmPivot.rotation.x = 1.5;  // Forward thrust
-        game.player.rightElbowPivot.rotation.x = 0.2;
+        // Arm extends straight out like a piston/pulley mechanism
+        // Shoulder rotates forward to point arm at target
+        game.player.rightArmPivot.rotation.x = Math.PI / 2;  // 90 degrees - arm points straight forward
+        game.player.rightArmPivot.rotation.z = 0;
 
-        // Torso leans forward
-        game.player.torso.rotation.x = 0.2;
+        // Elbow STRAIGHTENS (unbends) for maximum reach - like a telescoping piston
+        game.player.rightElbowPivot.rotation.x = 0;  // Fully straight
 
-        // Left arm stays back (negative = backward)
-        game.player.leftArmPivot.rotation.x = -0.3;
-        game.player.leftElbowPivot.rotation.x = 0;
+        // Torso leans into the lunge
+        game.player.torso.rotation.x = 0.3;
+
+        // Left arm pulls back for counterbalance (like a boxer)
+        game.player.leftArmPivot.rotation.x = -0.5;
+        game.player.leftElbowPivot.rotation.x = -0.8;  // Bent back
+
+        // Legs brace - back leg straight, front leg bent
+        game.player.rightLegPivot.rotation.x = 0.3;   // Front leg forward
+        game.player.leftLegPivot.rotation.x = -0.2;   // Back leg braces
+        game.player.rightKneePivot.rotation.x = 0.2;  // Slight bend
+        game.player.leftKneePivot.rotation.x = 0;     // Straight
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
