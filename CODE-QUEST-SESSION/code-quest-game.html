@@ -120,181 +120,7 @@ const game = {
         dash: { cooldown: 0, maxCooldown: 3 },
         block: { cooldown: 0, maxCooldown: 2, active: false }
     },
-    textures: {} // Loaded textures stored here
 };
-
-// Texture paths - add textures to the textures/ folder
-const TEXTURE_PATHS = {
-    // Player textures
-    player_torso: 'textures/player_torso.png',
-    player_head: 'textures/player_head.png',
-    player_upper_arm: 'textures/player_upper_arm.png',
-    player_lower_arm: 'textures/player_lower_arm.png',
-    player_thigh: 'textures/player_thigh.png',
-    player_shin: 'textures/player_shin.png',
-    player_foot: 'textures/player_foot.png',
-    player_weapon: 'textures/player_weapon.png',
-    // Enemy textures
-    enemy_torso: 'textures/enemy_torso.png',
-    enemy_head: 'textures/enemy_head.png',
-    enemy_upper_arm: 'textures/enemy_upper_arm.png',
-    enemy_lower_arm: 'textures/enemy_lower_arm.png',
-    enemy_thigh: 'textures/enemy_thigh.png',
-    enemy_shin: 'textures/enemy_shin.png',
-    enemy_foot: 'textures/enemy_foot.png',
-    enemy_claw: 'textures/enemy_claw.png',
-    // Environment
-    ground: 'textures/ground.png'
-};
-
-// Load all textures (non-blocking, falls back to solid colors)
-function loadTextures() {
-    const loader = new THREE.TextureLoader();
-
-    for (const [name, path] of Object.entries(TEXTURE_PATHS)) {
-        loader.load(
-            path,
-            // Success callback
-            (texture) => {
-                console.log(`Loaded texture: ${name}`);
-                game.textures[name] = texture;
-                // Update materials that use this texture
-                updateMaterialsWithTexture(name, texture);
-            },
-            // Progress callback (not used)
-            undefined,
-            // Error callback - texture not found, use solid color (this is fine)
-            (err) => {
-                console.log(`Texture ${name} not found - using solid color`);
-            }
-        );
-    }
-}
-
-// Update existing materials when a texture loads
-function updateMaterialsWithTexture(textureName, texture) {
-    // Ground texture
-    if (textureName === 'ground' && game.ground) {
-        game.ground.material.map = texture;
-        game.ground.material.needsUpdate = true;
-    }
-
-    // Player textures
-    if (game.player) {
-        const playerMap = {
-            'player_torso': game.player.torso,
-            'player_head': game.player.head,
-            'player_upper_arm': [game.player.rightUpperArm, game.player.leftUpperArm],
-            'player_lower_arm': [game.player.rightLowerArm, game.player.leftLowerArm],
-            'player_thigh': [game.player.rightUpperLeg, game.player.leftUpperLeg],
-            'player_shin': [game.player.rightLowerLeg, game.player.leftLowerLeg],
-            'player_foot': [game.player.rightFoot, game.player.leftFoot],
-            'player_weapon': game.player.weapon
-        };
-
-        if (playerMap[textureName]) {
-            const targets = Array.isArray(playerMap[textureName]) ? playerMap[textureName] : [playerMap[textureName]];
-            targets.forEach(mesh => {
-                if (mesh && mesh.material) {
-                    mesh.material.map = texture;
-                    mesh.material.needsUpdate = true;
-                }
-            });
-        }
-    }
-
-    // Enemy textures - apply to all enemies
-    const enemyMap = {
-        'enemy_torso': 'torso',
-        'enemy_head': 'head',
-        'enemy_upper_arm': ['rightUpperArm', 'leftUpperArm'],
-        'enemy_lower_arm': ['rightLowerArm', 'leftLowerArm'],
-        'enemy_thigh': ['rightUpperLeg', 'leftUpperLeg'],
-        'enemy_shin': ['rightLowerLeg', 'leftLowerLeg'],
-        'enemy_foot': ['rightFoot', 'leftFoot']
-    };
-
-    if (enemyMap[textureName]) {
-        game.enemies.forEach(enemy => {
-            const parts = Array.isArray(enemyMap[textureName]) ? enemyMap[textureName] : [enemyMap[textureName]];
-            parts.forEach(partName => {
-                const mesh = enemy[partName];
-                if (mesh && mesh.material) {
-                    mesh.material.map = texture;
-                    mesh.material.needsUpdate = true;
-                }
-            });
-        });
-    }
-
-    // Enemy claw is a Group with multiple meshes
-    if (textureName === 'enemy_claw') {
-        game.enemies.forEach(enemy => {
-            if (enemy.weapon) {
-                enemy.weapon.traverse(child => {
-                    if (child.isMesh && child.material) {
-                        child.material.map = texture;
-                        child.material.needsUpdate = true;
-                    }
-                });
-            }
-        });
-    }
-}
-
-// Apply all loaded textures to an enemy (called after spawn)
-function applyEnemyTextures(enemy) {
-    const enemyTextureMap = {
-        'enemy_torso': 'torso',
-        'enemy_head': 'head',
-        'enemy_upper_arm': ['rightUpperArm', 'leftUpperArm'],
-        'enemy_lower_arm': ['rightLowerArm', 'leftLowerArm'],
-        'enemy_thigh': ['rightUpperLeg', 'leftUpperLeg'],
-        'enemy_shin': ['rightLowerLeg', 'leftLowerLeg'],
-        'enemy_foot': ['rightFoot', 'leftFoot']
-    };
-
-    for (const [textureName, partNames] of Object.entries(enemyTextureMap)) {
-        if (game.textures[textureName]) {
-            const parts = Array.isArray(partNames) ? partNames : [partNames];
-            parts.forEach(partName => {
-                const mesh = enemy[partName];
-                if (mesh && mesh.material) {
-                    mesh.material.map = game.textures[textureName];
-                    mesh.material.needsUpdate = true;
-                }
-            });
-        }
-    }
-
-    // Apply claw texture to all claw parts (weapon is a Group with multiple meshes)
-    if (game.textures['enemy_claw'] && enemy.weapon) {
-        enemy.weapon.traverse(child => {
-            if (child.isMesh && child.material) {
-                child.material.map = game.textures['enemy_claw'];
-                child.material.needsUpdate = true;
-            }
-        });
-    }
-}
-
-// Helper: Create material with optional texture
-function createMaterial(color, emissiveColor, textureName, options = {}) {
-    const material = new THREE.MeshStandardMaterial({
-        color: color,
-        emissive: emissiveColor || color,
-        emissiveIntensity: options.emissiveIntensity || 0.5,
-        metalness: options.metalness || 0.3,
-        roughness: options.roughness || 0.7
-    });
-
-    // Apply texture if already loaded
-    if (game.textures[textureName]) {
-        material.map = game.textures[textureName];
-    }
-
-    return material;
-}
 
 // Check if Three.js loaded
 if (typeof THREE === 'undefined') {
@@ -304,14 +130,11 @@ if (typeof THREE === 'undefined') {
 
 // Initialize Three.js
 function init() {
-    console.log('Initializing game...');
+    console.log('Initializing low-poly game...');
 
-    // Start loading textures (non-blocking)
-    loadTextures();
-
-    // Scene
+    // Scene with atmospheric sky color
     game.scene = new THREE.Scene();
-    game.scene.background = new THREE.Color(0xffffff);
+    game.scene.background = new THREE.Color(0x87ceeb); // Sky blue
     
     // Camera
     game.camera = new THREE.PerspectiveCamera(
@@ -345,24 +168,35 @@ function init() {
     pointLight.position.set(0, 10, 0);
     game.scene.add(pointLight);
     
-    // Ground with yellow color
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    // Ground - low poly style with earthy tone
+    const groundGeometry = new THREE.PlaneGeometry(100, 100, 20, 20);
+    // Add slight height variation for low-poly terrain feel
+    const groundVerts = groundGeometry.attributes.position;
+    for (let i = 0; i < groundVerts.count; i++) {
+        const x = groundVerts.getX(i);
+        const y = groundVerts.getY(i);
+        // Subtle random height variation
+        groundVerts.setZ(i, Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.15 + Math.random() * 0.05);
+    }
+    groundGeometry.computeVertexNormals();
+
     const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffdd00,
-        roughness: 0.8,
-        metalness: 0.2
+        color: 0x5d4e37,
+        flatShading: true,
+        roughness: 0.9,
+        metalness: 0.1
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = 0;
-    game.ground = ground; // Store reference for texture updates
+    game.ground = ground;
     game.scene.add(ground);
 
-    console.log('Ground added');
-    
-    // Visible grid (dark orange on yellow ground)
-    const gridHelper = new THREE.GridHelper(100, 50, 0xcc8800, 0xcc8800);
-    gridHelper.position.y = 0.01;
+    console.log('Low-poly ground added');
+
+    // Subtle grid (darker tone)
+    const gridHelper = new THREE.GridHelper(100, 25, 0x3d3020, 0x3d3020);
+    gridHelper.position.y = 0.02;
     game.scene.add(gridHelper);
     
     console.log('Grid added');
@@ -390,158 +224,222 @@ function init() {
     animate();
 }
 
-// Create player with hierarchical body parts
+// Create player with hierarchical body parts - LOW POLY STYLE
 function createPlayer() {
     // Main container
     game.player = new THREE.Group();
     game.player.position.set(0, 0, 0);
 
-    // Materials
+    // LOW POLY MATERIALS - Flat shading for faceted look
     const torsoMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ff00,
-        emissive: 0x00ff00,
-        emissiveIntensity: 0.5,
+        color: 0x4a90d9,
+        flatShading: true,
+        metalness: 0.2,
+        roughness: 0.8
+    });
+    const limbMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3a7bc8,
+        flatShading: true,
+        metalness: 0.2,
+        roughness: 0.8
+    });
+    const accentMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2d5a8a,
+        flatShading: true,
         metalness: 0.3,
         roughness: 0.7
     });
-    const armMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00cc00,
-        emissive: 0x00cc00,
-        emissiveIntensity: 0.3
-    });
-    const legMaterial = new THREE.MeshStandardMaterial({
-        color: 0x009900,
-        emissive: 0x009900,
-        emissiveIntensity: 0.3
-    });
-    const footMaterial = new THREE.MeshStandardMaterial({
-        color: 0x006600,
-        emissive: 0x006600,
-        emissiveIntensity: 0.3
+    const visorMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 0.8,
+        flatShading: true
     });
 
-    // TORSO (root of body hierarchy)
-    const torsoGeometry = new THREE.BoxGeometry(0.8, 1.0, 0.5);
+    // TORSO - Octahedron stretched vertically for low-poly chest
+    const torsoGeometry = new THREE.CylinderGeometry(0.35, 0.45, 1.0, 6);
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.position.y = 1.5;
     game.player.torso = torso;
     game.player.add(torso);
 
-    // HEAD (child of torso)
-    const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    // SHOULDER PADS - Low poly spheres
+    const shoulderGeometry = new THREE.IcosahedronGeometry(0.18, 0);
+    const leftShoulder = new THREE.Mesh(shoulderGeometry, accentMaterial);
+    leftShoulder.position.set(-0.45, 0.35, 0);
+    leftShoulder.scale.set(1, 0.8, 1);
+    torso.add(leftShoulder);
+    const rightShoulder = new THREE.Mesh(shoulderGeometry, accentMaterial);
+    rightShoulder.position.set(0.45, 0.35, 0);
+    rightShoulder.scale.set(1, 0.8, 1);
+    torso.add(rightShoulder);
+
+    // HEAD - Dodecahedron for faceted skull look
+    const headGeometry = new THREE.DodecahedronGeometry(0.32, 0);
     const headMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ff00,
-        emissive: 0x00ff00,
-        emissiveIntensity: 0.7
+        color: 0x4a90d9,
+        flatShading: true,
+        metalness: 0.2,
+        roughness: 0.8
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 0.8; // Relative to torso
+    head.position.y = 0.85;
+    head.scale.set(1, 1.1, 1);
     game.player.head = head;
     torso.add(head);
 
-    // VISOR (child of head)
-    const visorGeometry = new THREE.BoxGeometry(0.5, 0.15, 0.35);
-    const visorMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00ffff,
-        emissiveIntensity: 1.0
-    });
+    // VISOR - Angular strip across face
+    const visorGeometry = new THREE.BoxGeometry(0.5, 0.12, 0.2);
     const visor = new THREE.Mesh(visorGeometry, visorMaterial);
-    visor.position.set(0, 0, -0.3); // Relative to head - FRONT of face (toward -Z movement direction)
+    visor.position.set(0, 0, -0.28);
     game.player.visor = visor;
     head.add(visor);
 
     // RIGHT ARM HIERARCHY
     const rightArmPivot = new THREE.Group();
-    rightArmPivot.position.set(0.5, 0.4, 0); // Shoulder position relative to torso
+    rightArmPivot.position.set(0.45, 0.3, 0);
     torso.add(rightArmPivot);
     game.player.rightArmPivot = rightArmPivot;
 
-    const upperArmGeometry = new THREE.BoxGeometry(0.2, 0.6, 0.2);
-    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    rightUpperArm.position.y = -0.3; // Center below pivot
+    // Upper arm - tapered cylinder
+    const upperArmGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.5, 5);
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, limbMaterial.clone());
+    rightUpperArm.position.y = -0.3;
     game.player.rightUpperArm = rightUpperArm;
     rightArmPivot.add(rightUpperArm);
 
+    // Elbow joint
+    const elbowGeometry = new THREE.IcosahedronGeometry(0.09, 0);
+    const rightElbow = new THREE.Mesh(elbowGeometry, accentMaterial.clone());
+    rightElbow.position.y = -0.55;
+    rightUpperArm.add(rightElbow);
+
     const rightElbowPivot = new THREE.Group();
-    rightElbowPivot.position.y = -0.6; // Elbow at bottom of upper arm
+    rightElbowPivot.position.y = -0.55;
     rightUpperArm.add(rightElbowPivot);
     game.player.rightElbowPivot = rightElbowPivot;
 
-    const lowerArmGeometry = new THREE.BoxGeometry(0.18, 0.5, 0.18);
-    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    rightLowerArm.position.y = -0.25; // Center below elbow
+    // Lower arm
+    const lowerArmGeometry = new THREE.CylinderGeometry(0.06, 0.09, 0.45, 5);
+    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, limbMaterial.clone());
+    rightLowerArm.position.y = -0.25;
     game.player.rightLowerArm = rightLowerArm;
     rightElbowPivot.add(rightLowerArm);
 
-    // WRIST PIVOT (allows weapon to stay forward during arm rotation)
+    // WRIST PIVOT
     const rightWristPivot = new THREE.Group();
-    rightWristPivot.position.y = -0.25; // At end of lower arm (wrist position)
+    rightWristPivot.position.y = -0.25;
     rightLowerArm.add(rightWristPivot);
     game.player.rightWristPivot = rightWristPivot;
 
-    // WEAPON (child of wrist pivot - can be counter-rotated)
-    const weaponHandle = new THREE.BoxGeometry(0.15, 0.15, 0.6);
-    const weaponHandleMaterial = new THREE.MeshStandardMaterial({
-        color: 0x888888,
-        metalness: 0.5
-    });
-    const handle = new THREE.Mesh(weaponHandle, weaponHandleMaterial);
-    handle.position.set(0, 0, -0.3); // Relative to wrist
-    rightWristPivot.add(handle);
+    // WEAPON - Low poly crystal sword
+    const weaponGroup = new THREE.Group();
 
-    const weaponBlade = new THREE.BoxGeometry(0.3, 0.1, 1.2);
-    const weaponBladeMaterial = new THREE.MeshStandardMaterial({
+    // Handle - octagonal cylinder
+    const handleGeometry = new THREE.CylinderGeometry(0.04, 0.05, 0.3, 6);
+    const handleMaterial = new THREE.MeshStandardMaterial({
+        color: 0x666666,
+        flatShading: true,
+        metalness: 0.6,
+        roughness: 0.4
+    });
+    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+    handle.rotation.x = Math.PI / 2;
+    handle.position.z = -0.15;
+    weaponGroup.add(handle);
+
+    // Guard - flat diamond
+    const guardGeometry = new THREE.OctahedronGeometry(0.1, 0);
+    const guardMaterial = new THREE.MeshStandardMaterial({
+        color: 0x888888,
+        flatShading: true,
+        metalness: 0.7
+    });
+    const guard = new THREE.Mesh(guardGeometry, guardMaterial);
+    guard.scale.set(1.5, 0.3, 0.5);
+    guard.position.z = -0.32;
+    weaponGroup.add(guard);
+
+    // Blade - elongated octahedron (crystal sword)
+    const bladeGeometry = new THREE.ConeGeometry(0.08, 1.0, 4);
+    const bladeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00ffff,
-        emissiveIntensity: 0.7,
-        metalness: 0.8
+        emissiveIntensity: 0.4,
+        flatShading: true,
+        metalness: 0.8,
+        roughness: 0.2
     });
-    game.player.weapon = new THREE.Mesh(weaponBlade, weaponBladeMaterial);
-    game.player.weapon.position.set(0, 0, -0.9); // Extended from handle
-    rightWristPivot.add(game.player.weapon);
+    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+    blade.rotation.x = -Math.PI / 2;
+    blade.position.z = -0.85;
+    weaponGroup.add(blade);
+
+    game.player.weapon = weaponGroup;
+    rightWristPivot.add(weaponGroup);
 
     // LEFT ARM HIERARCHY
     const leftArmPivot = new THREE.Group();
-    leftArmPivot.position.set(-0.5, 0.4, 0);
+    leftArmPivot.position.set(-0.45, 0.3, 0);
     torso.add(leftArmPivot);
     game.player.leftArmPivot = leftArmPivot;
 
-    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry.clone(), limbMaterial.clone());
     leftUpperArm.position.y = -0.3;
     game.player.leftUpperArm = leftUpperArm;
     leftArmPivot.add(leftUpperArm);
 
+    const leftElbow = new THREE.Mesh(elbowGeometry.clone(), accentMaterial.clone());
+    leftElbow.position.y = -0.55;
+    leftUpperArm.add(leftElbow);
+
     const leftElbowPivot = new THREE.Group();
-    leftElbowPivot.position.y = -0.6;
+    leftElbowPivot.position.y = -0.55;
     leftUpperArm.add(leftElbowPivot);
     game.player.leftElbowPivot = leftElbowPivot;
 
-    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry.clone(), limbMaterial.clone());
     leftLowerArm.position.y = -0.25;
     game.player.leftLowerArm = leftLowerArm;
     leftElbowPivot.add(leftLowerArm);
 
+    // Hand/fist for left arm
+    const fistGeometry = new THREE.IcosahedronGeometry(0.08, 0);
+    const leftFist = new THREE.Mesh(fistGeometry, accentMaterial.clone());
+    leftFist.position.y = -0.28;
+    leftLowerArm.add(leftFist);
+
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
-    rightLegPivot.position.set(0.25, -0.5, 0); // Hip position relative to torso
+    rightLegPivot.position.set(0.18, -0.5, 0);
     torso.add(rightLegPivot);
     game.player.rightLegPivot = rightLegPivot;
 
-    const upperLegGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.3);
-    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    rightUpperLeg.position.y = -0.3;
+    // Hip joint
+    const hipGeometry = new THREE.IcosahedronGeometry(0.1, 0);
+    const rightHip = new THREE.Mesh(hipGeometry, accentMaterial.clone());
+    rightLegPivot.add(rightHip);
+
+    const upperLegGeometry = new THREE.CylinderGeometry(0.1, 0.14, 0.55, 5);
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, limbMaterial.clone());
+    rightUpperLeg.position.y = -0.32;
     game.player.rightUpperLeg = rightUpperLeg;
     rightLegPivot.add(rightUpperLeg);
 
+    // Knee joint
+    const kneeGeometry = new THREE.IcosahedronGeometry(0.1, 0);
+    const rightKnee = new THREE.Mesh(kneeGeometry, accentMaterial.clone());
+    rightKnee.position.y = -0.58;
+    rightUpperLeg.add(rightKnee);
+
     const rightKneePivot = new THREE.Group();
-    rightKneePivot.position.y = -0.6;
+    rightKneePivot.position.y = -0.58;
     rightUpperLeg.add(rightKneePivot);
     game.player.rightKneePivot = rightKneePivot;
 
-    const lowerLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
-    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    rightLowerLeg.position.y = -0.25;
+    const lowerLegGeometry = new THREE.CylinderGeometry(0.07, 0.1, 0.5, 5);
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, limbMaterial.clone());
+    rightLowerLeg.position.y = -0.28;
     game.player.rightLowerLeg = rightLowerLeg;
     rightKneePivot.add(rightLowerLeg);
 
@@ -550,30 +448,39 @@ function createPlayer() {
     rightLowerLeg.add(rightAnklePivot);
     game.player.rightAnklePivot = rightAnklePivot;
 
-    const footGeometry = new THREE.BoxGeometry(0.28, 0.15, 0.4);
-    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    rightFoot.position.set(0, -0.08, 0.1);
+    // Foot - angular wedge
+    const footGeometry = new THREE.ConeGeometry(0.12, 0.35, 4);
+    const rightFoot = new THREE.Mesh(footGeometry, accentMaterial.clone());
+    rightFoot.rotation.x = Math.PI / 2;
+    rightFoot.position.set(0, -0.05, 0.1);
     game.player.rightFoot = rightFoot;
     rightAnklePivot.add(rightFoot);
 
     // LEFT LEG HIERARCHY
     const leftLegPivot = new THREE.Group();
-    leftLegPivot.position.set(-0.25, -0.5, 0);
+    leftLegPivot.position.set(-0.18, -0.5, 0);
     torso.add(leftLegPivot);
     game.player.leftLegPivot = leftLegPivot;
 
-    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    leftUpperLeg.position.y = -0.3;
+    const leftHip = new THREE.Mesh(hipGeometry.clone(), accentMaterial.clone());
+    leftLegPivot.add(leftHip);
+
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry.clone(), limbMaterial.clone());
+    leftUpperLeg.position.y = -0.32;
     game.player.leftUpperLeg = leftUpperLeg;
     leftLegPivot.add(leftUpperLeg);
 
+    const leftKnee = new THREE.Mesh(kneeGeometry.clone(), accentMaterial.clone());
+    leftKnee.position.y = -0.58;
+    leftUpperLeg.add(leftKnee);
+
     const leftKneePivot = new THREE.Group();
-    leftKneePivot.position.y = -0.6;
+    leftKneePivot.position.y = -0.58;
     leftUpperLeg.add(leftKneePivot);
     game.player.leftKneePivot = leftKneePivot;
 
-    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    leftLowerLeg.position.y = -0.25;
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry.clone(), limbMaterial.clone());
+    leftLowerLeg.position.y = -0.28;
     game.player.leftLowerLeg = leftLowerLeg;
     leftKneePivot.add(leftLowerLeg);
 
@@ -582,8 +489,9 @@ function createPlayer() {
     leftLowerLeg.add(leftAnklePivot);
     game.player.leftAnklePivot = leftAnklePivot;
 
-    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    leftFoot.position.set(0, -0.08, 0.1);
+    const leftFoot = new THREE.Mesh(footGeometry.clone(), accentMaterial.clone());
+    leftFoot.rotation.x = Math.PI / 2;
+    leftFoot.position.set(0, -0.05, 0.1);
     game.player.leftFoot = leftFoot;
     leftAnklePivot.add(leftFoot);
 
@@ -603,7 +511,7 @@ function createPlayer() {
     // Speed lines for dashing (initially hidden)
     game.player.speedLines = [];
     for (let i = 0; i < 5; i++) {
-        const lineGeometry = new THREE.BoxGeometry(0.1, 0.1, 2);
+        const lineGeometry = new THREE.ConeGeometry(0.05, 1.5, 3);
         const lineMaterial = new THREE.MeshBasicMaterial({
             color: 0x00ffff,
             transparent: true,
@@ -616,132 +524,174 @@ function createPlayer() {
     }
 
     game.scene.add(game.player);
-    console.log('Animated player added to scene');
+    console.log('Low-poly player added to scene');
 }
 
-// Spawn enemy with hierarchical body parts
+// Spawn enemy with hierarchical body parts - LOW POLY STYLE
 function spawnEnemy() {
     // Main container
     const enemy = new THREE.Group();
 
-    // Materials
+    // LOW POLY MATERIALS - Flat shading, red/orange demonic colors
     const torsoMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 0.5,
+        color: 0x8b2500,
+        flatShading: true,
         metalness: 0.3,
         roughness: 0.7
     });
-    const armMaterial = new THREE.MeshStandardMaterial({
-        color: 0xaa0000,
-        emissive: 0xaa0000,
-        emissiveIntensity: 0.3
+    const limbMaterial = new THREE.MeshStandardMaterial({
+        color: 0x6b1c00,
+        flatShading: true,
+        metalness: 0.2,
+        roughness: 0.8
     });
-    const legMaterial = new THREE.MeshStandardMaterial({
-        color: 0x880000,
-        emissive: 0x880000,
-        emissiveIntensity: 0.3
+    const accentMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4a1200,
+        flatShading: true,
+        metalness: 0.4,
+        roughness: 0.6
     });
-    const footMaterial = new THREE.MeshStandardMaterial({
-        color: 0x660000,
-        emissive: 0x660000,
-        emissiveIntensity: 0.3
+    const eyeMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffff00,
+        emissive: 0xffff00,
+        emissiveIntensity: 1.0,
+        flatShading: true
     });
 
-    // TORSO (root of body hierarchy)
-    const torsoGeometry = new THREE.BoxGeometry(0.7, 0.9, 0.4);
+    // TORSO - Angular demonic chest
+    const torsoGeometry = new THREE.CylinderGeometry(0.25, 0.4, 0.9, 5);
     const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
     torso.position.y = 1.3;
     enemy.torso = torso;
     enemy.add(torso);
 
-    // HEAD (child of torso)
-    const headGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    // Chest spikes
+    const spikeGeometry = new THREE.ConeGeometry(0.08, 0.25, 4);
+    const spikeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3d0c00,
+        flatShading: true,
+        metalness: 0.5
+    });
+    const chestSpike1 = new THREE.Mesh(spikeGeometry, spikeMaterial);
+    chestSpike1.position.set(0.15, 0.2, -0.25);
+    chestSpike1.rotation.x = -0.5;
+    torso.add(chestSpike1);
+    const chestSpike2 = new THREE.Mesh(spikeGeometry, spikeMaterial);
+    chestSpike2.position.set(-0.15, 0.2, -0.25);
+    chestSpike2.rotation.x = -0.5;
+    torso.add(chestSpike2);
+
+    // HEAD - Angular demon skull with horns
+    const headGeometry = new THREE.DodecahedronGeometry(0.28, 0);
     const headMaterial = new THREE.MeshStandardMaterial({
-        color: 0xcc0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 0.6
+        color: 0x8b2500,
+        flatShading: true,
+        metalness: 0.3,
+        roughness: 0.7
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 0.7; // Relative to torso
+    head.position.y = 0.7;
+    head.scale.set(1, 1.2, 1);
     enemy.head = head;
     torso.add(head);
 
-    // EYE VISOR (child of head)
-    const eyeGeometry = new THREE.BoxGeometry(0.4, 0.12, 0.3);
-    const eyeMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffff00,
-        emissive: 0xffff00,
-        emissiveIntensity: 1.0
+    // Horns
+    const hornGeometry = new THREE.ConeGeometry(0.06, 0.35, 4);
+    const hornMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a0a00,
+        flatShading: true,
+        metalness: 0.6
     });
-    const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye.position.set(0, 0, -0.25); // Relative to head - FRONT of face (toward -Z movement direction)
-    enemy.eye = eye;
-    head.add(eye);
+    const leftHorn = new THREE.Mesh(hornGeometry, hornMaterial);
+    leftHorn.position.set(-0.2, 0.25, 0);
+    leftHorn.rotation.z = 0.4;
+    head.add(leftHorn);
+    const rightHorn = new THREE.Mesh(hornGeometry, hornMaterial);
+    rightHorn.position.set(0.2, 0.25, 0);
+    rightHorn.rotation.z = -0.4;
+    head.add(rightHorn);
+
+    // Glowing eyes
+    const eyeGeoL = new THREE.OctahedronGeometry(0.06, 0);
+    const leftEye = new THREE.Mesh(eyeGeoL, eyeMaterial);
+    leftEye.position.set(-0.12, 0.05, -0.22);
+    enemy.eye = leftEye;
+    head.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeoL.clone(), eyeMaterial.clone());
+    rightEye.position.set(0.12, 0.05, -0.22);
+    head.add(rightEye);
 
     // RIGHT ARM HIERARCHY
-    // Right Upper Arm pivot (attached to torso shoulder)
     const rightArmPivot = new THREE.Group();
-    rightArmPivot.position.set(0.45, 0.35, 0); // Shoulder position relative to torso
+    rightArmPivot.position.set(0.35, 0.3, 0);
     torso.add(rightArmPivot);
     enemy.rightArmPivot = rightArmPivot;
 
-    const upperArmGeometry = new THREE.BoxGeometry(0.18, 0.5, 0.18);
-    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
-    rightUpperArm.position.y = -0.25; // Center of upper arm below pivot
+    // Shoulder spike
+    const shoulderSpike = new THREE.Mesh(spikeGeometry.clone(), spikeMaterial.clone());
+    shoulderSpike.position.set(0.1, 0, 0);
+    shoulderSpike.rotation.z = -Math.PI / 2;
+    rightArmPivot.add(shoulderSpike);
+
+    const upperArmGeometry = new THREE.CylinderGeometry(0.07, 0.1, 0.45, 5);
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, limbMaterial.clone());
+    rightUpperArm.position.y = -0.25;
     enemy.rightUpperArm = rightUpperArm;
     rightArmPivot.add(rightUpperArm);
 
-    // Right Lower Arm pivot (attached to upper arm elbow)
     const rightElbowPivot = new THREE.Group();
-    rightElbowPivot.position.y = -0.5; // Elbow position at bottom of upper arm
+    rightElbowPivot.position.y = -0.45;
     rightUpperArm.add(rightElbowPivot);
     enemy.rightElbowPivot = rightElbowPivot;
 
-    const lowerArmGeometry = new THREE.BoxGeometry(0.15, 0.4, 0.15);
-    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    rightLowerArm.position.y = -0.2; // Center of lower arm below pivot
+    // Elbow spike
+    const elbowJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), accentMaterial.clone());
+    rightElbowPivot.add(elbowJoint);
+
+    const lowerArmGeometry = new THREE.CylinderGeometry(0.05, 0.08, 0.4, 5);
+    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, limbMaterial.clone());
+    rightLowerArm.position.y = -0.22;
     enemy.rightLowerArm = rightLowerArm;
     rightElbowPivot.add(rightLowerArm);
 
-    // Weapon (3-fingered claw on right hand)
+    // WEAPON - Low poly claw like reference image
     const clawMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff6600,
-        emissive: 0xff6600,
-        emissiveIntensity: 0.6,
-        metalness: 0.7
+        color: 0xc9a066,
+        flatShading: true,
+        metalness: 0.4,
+        roughness: 0.6
     });
 
-    // Claw container group
     const claw = new THREE.Group();
-    claw.position.set(0, -0.35, 0); // At the fist
+    claw.position.set(0, -0.35, 0);
 
-    // Palm/base of claw
-    const palmGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.15);
+    // Palm - rounded low-poly base (like reference)
+    const palmGeometry = new THREE.SphereGeometry(0.12, 4, 3);
     const palm = new THREE.Mesh(palmGeometry, clawMaterial);
+    palm.scale.set(1, 0.7, 1);
     claw.add(palm);
 
-    // Three claw fingers - spread out in a grabbing pose
-    const fingerGeometry = new THREE.ConeGeometry(0.04, 0.35, 6);
+    // Three tapered claw fingers (like reference image)
+    const fingerGeometry = new THREE.ConeGeometry(0.045, 0.5, 5);
 
-    // Center finger (points straight forward toward -Z)
+    // Center finger
     const centerFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
-    centerFinger.rotation.x = -Math.PI / 2; // Point toward -Z
-    centerFinger.position.set(0, 0, -0.2);
+    centerFinger.rotation.x = -Math.PI / 2;
+    centerFinger.position.set(0, -0.05, -0.28);
     claw.add(centerFinger);
 
-    // Left finger (angled outward)
-    const leftFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
+    // Left finger
+    const leftFinger = new THREE.Mesh(fingerGeometry.clone(), clawMaterial.clone());
     leftFinger.rotation.x = -Math.PI / 2;
-    leftFinger.rotation.z = 0.4; // Angle outward
-    leftFinger.position.set(-0.08, 0, -0.18);
+    leftFinger.rotation.z = 0.35;
+    leftFinger.position.set(-0.1, -0.05, -0.24);
     claw.add(leftFinger);
 
-    // Right finger (angled outward)
-    const rightFinger = new THREE.Mesh(fingerGeometry, clawMaterial.clone());
+    // Right finger
+    const rightFinger = new THREE.Mesh(fingerGeometry.clone(), clawMaterial.clone());
     rightFinger.rotation.x = -Math.PI / 2;
-    rightFinger.rotation.z = -0.4; // Angle outward
-    rightFinger.position.set(0.08, 0, -0.18);
+    rightFinger.rotation.z = -0.35;
+    rightFinger.position.set(0.1, -0.05, -0.24);
     claw.add(rightFinger);
 
     enemy.weapon = claw;
@@ -749,34 +699,51 @@ function spawnEnemy() {
 
     // LEFT ARM HIERARCHY
     const leftArmPivot = new THREE.Group();
-    leftArmPivot.position.set(-0.45, 0.35, 0);
+    leftArmPivot.position.set(-0.35, 0.3, 0);
     torso.add(leftArmPivot);
     enemy.leftArmPivot = leftArmPivot;
 
-    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial.clone());
+    const leftShoulderSpike = new THREE.Mesh(spikeGeometry.clone(), spikeMaterial.clone());
+    leftShoulderSpike.position.set(-0.1, 0, 0);
+    leftShoulderSpike.rotation.z = Math.PI / 2;
+    leftArmPivot.add(leftShoulderSpike);
+
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry.clone(), limbMaterial.clone());
     leftUpperArm.position.y = -0.25;
     enemy.leftUpperArm = leftUpperArm;
     leftArmPivot.add(leftUpperArm);
 
     const leftElbowPivot = new THREE.Group();
-    leftElbowPivot.position.y = -0.5;
+    leftElbowPivot.position.y = -0.45;
     leftUpperArm.add(leftElbowPivot);
     enemy.leftElbowPivot = leftElbowPivot;
 
-    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial.clone());
-    leftLowerArm.position.y = -0.2;
+    const leftElbowJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), accentMaterial.clone());
+    leftElbowPivot.add(leftElbowJoint);
+
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry.clone(), limbMaterial.clone());
+    leftLowerArm.position.y = -0.22;
     enemy.leftLowerArm = leftLowerArm;
     leftElbowPivot.add(leftLowerArm);
 
+    // Left hand fist
+    const fistGeometry = new THREE.IcosahedronGeometry(0.08, 0);
+    const leftFist = new THREE.Mesh(fistGeometry, accentMaterial.clone());
+    leftFist.position.y = -0.28;
+    leftLowerArm.add(leftFist);
+
     // RIGHT LEG HIERARCHY
     const rightLegPivot = new THREE.Group();
-    rightLegPivot.position.set(0.2, -0.45, 0); // Hip position relative to torso
+    rightLegPivot.position.set(0.15, -0.45, 0);
     torso.add(rightLegPivot);
     enemy.rightLegPivot = rightLegPivot;
 
-    const upperLegGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.25);
-    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    rightUpperLeg.position.y = -0.25;
+    const hipJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), accentMaterial.clone());
+    rightLegPivot.add(hipJoint);
+
+    const upperLegGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.5, 5);
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, limbMaterial.clone());
+    rightUpperLeg.position.y = -0.28;
     enemy.rightUpperLeg = rightUpperLeg;
     rightLegPivot.add(rightUpperLeg);
 
@@ -785,31 +752,39 @@ function spawnEnemy() {
     rightUpperLeg.add(rightKneePivot);
     enemy.rightKneePivot = rightKneePivot;
 
-    const lowerLegGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.2);
-    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    rightLowerLeg.position.y = -0.2;
+    const kneeJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), accentMaterial.clone());
+    rightKneePivot.add(kneeJoint);
+
+    const lowerLegGeometry = new THREE.CylinderGeometry(0.06, 0.09, 0.45, 5);
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, limbMaterial.clone());
+    rightLowerLeg.position.y = -0.25;
     enemy.rightLowerLeg = rightLowerLeg;
     rightKneePivot.add(rightLowerLeg);
 
     const rightAnklePivot = new THREE.Group();
-    rightAnklePivot.position.y = -0.4;
+    rightAnklePivot.position.y = -0.45;
     rightLowerLeg.add(rightAnklePivot);
     enemy.rightAnklePivot = rightAnklePivot;
 
-    const footGeometry = new THREE.BoxGeometry(0.22, 0.12, 0.35);
-    const rightFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    rightFoot.position.set(0, -0.06, 0.08);
+    // Foot - demonic clawed foot
+    const footGeometry = new THREE.ConeGeometry(0.1, 0.3, 4);
+    const rightFoot = new THREE.Mesh(footGeometry, accentMaterial.clone());
+    rightFoot.rotation.x = Math.PI / 2;
+    rightFoot.position.set(0, -0.05, 0.08);
     enemy.rightFoot = rightFoot;
     rightAnklePivot.add(rightFoot);
 
     // LEFT LEG HIERARCHY
     const leftLegPivot = new THREE.Group();
-    leftLegPivot.position.set(-0.2, -0.45, 0);
+    leftLegPivot.position.set(-0.15, -0.45, 0);
     torso.add(leftLegPivot);
     enemy.leftLegPivot = leftLegPivot;
 
-    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial.clone());
-    leftUpperLeg.position.y = -0.25;
+    const leftHipJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), accentMaterial.clone());
+    leftLegPivot.add(leftHipJoint);
+
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry.clone(), limbMaterial.clone());
+    leftUpperLeg.position.y = -0.28;
     enemy.leftUpperLeg = leftUpperLeg;
     leftLegPivot.add(leftUpperLeg);
 
@@ -818,18 +793,22 @@ function spawnEnemy() {
     leftUpperLeg.add(leftKneePivot);
     enemy.leftKneePivot = leftKneePivot;
 
-    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial.clone());
-    leftLowerLeg.position.y = -0.2;
+    const leftKneeJoint = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 0), accentMaterial.clone());
+    leftKneePivot.add(leftKneeJoint);
+
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry.clone(), limbMaterial.clone());
+    leftLowerLeg.position.y = -0.25;
     enemy.leftLowerLeg = leftLowerLeg;
     leftKneePivot.add(leftLowerLeg);
 
     const leftAnklePivot = new THREE.Group();
-    leftAnklePivot.position.y = -0.4;
+    leftAnklePivot.position.y = -0.45;
     leftLowerLeg.add(leftAnklePivot);
     enemy.leftAnklePivot = leftAnklePivot;
 
-    const leftFoot = new THREE.Mesh(footGeometry, footMaterial.clone());
-    leftFoot.position.set(0, -0.06, 0.08);
+    const leftFoot = new THREE.Mesh(footGeometry.clone(), accentMaterial.clone());
+    leftFoot.rotation.x = Math.PI / 2;
+    leftFoot.position.set(0, -0.05, 0.08);
     enemy.leftFoot = leftFoot;
     leftAnklePivot.add(leftFoot);
 
@@ -842,7 +821,7 @@ function spawnEnemy() {
         Math.sin(angle) * distance
     );
 
-    console.log('Enemy spawned at:', enemy.position);
+    console.log('Low-poly enemy spawned at:', enemy.position);
 
     // Enemy properties
     enemy.health = 30;
@@ -861,9 +840,6 @@ function spawnEnemy() {
 
     game.enemies.push(enemy);
     game.scene.add(enemy);
-
-    // Apply any loaded textures to the new enemy
-    applyEnemyTextures(enemy);
 }
 
 // Update player
