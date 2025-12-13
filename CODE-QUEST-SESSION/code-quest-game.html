@@ -125,16 +125,25 @@ const game = {
 
 // Texture paths - add textures to the textures/ folder
 const TEXTURE_PATHS = {
+    // Player textures
     player_torso: 'textures/player_torso.png',
     player_head: 'textures/player_head.png',
-    player_arm: 'textures/player_arm.png',
-    player_leg: 'textures/player_leg.png',
+    player_upper_arm: 'textures/player_upper_arm.png',
+    player_lower_arm: 'textures/player_lower_arm.png',
+    player_thigh: 'textures/player_thigh.png',
+    player_shin: 'textures/player_shin.png',
+    player_foot: 'textures/player_foot.png',
     player_weapon: 'textures/player_weapon.png',
+    // Enemy textures
     enemy_torso: 'textures/enemy_torso.png',
     enemy_head: 'textures/enemy_head.png',
-    enemy_arm: 'textures/enemy_arm.png',
-    enemy_leg: 'textures/enemy_leg.png',
+    enemy_upper_arm: 'textures/enemy_upper_arm.png',
+    enemy_lower_arm: 'textures/enemy_lower_arm.png',
+    enemy_thigh: 'textures/enemy_thigh.png',
+    enemy_shin: 'textures/enemy_shin.png',
+    enemy_foot: 'textures/enemy_foot.png',
     enemy_claw: 'textures/enemy_claw.png',
+    // Environment
     ground: 'textures/ground.png'
 };
 
@@ -164,11 +173,108 @@ function loadTextures() {
 
 // Update existing materials when a texture loads
 function updateMaterialsWithTexture(textureName, texture) {
-    // This function can be expanded to update specific materials
-    // when their textures become available
+    // Ground texture
     if (textureName === 'ground' && game.ground) {
         game.ground.material.map = texture;
         game.ground.material.needsUpdate = true;
+    }
+
+    // Player textures
+    if (game.player) {
+        const playerMap = {
+            'player_torso': game.player.torso,
+            'player_head': game.player.head,
+            'player_upper_arm': [game.player.rightUpperArm, game.player.leftUpperArm],
+            'player_lower_arm': [game.player.rightLowerArm, game.player.leftLowerArm],
+            'player_thigh': [game.player.rightUpperLeg, game.player.leftUpperLeg],
+            'player_shin': [game.player.rightLowerLeg, game.player.leftLowerLeg],
+            'player_foot': [game.player.rightFoot, game.player.leftFoot],
+            'player_weapon': game.player.weapon
+        };
+
+        if (playerMap[textureName]) {
+            const targets = Array.isArray(playerMap[textureName]) ? playerMap[textureName] : [playerMap[textureName]];
+            targets.forEach(mesh => {
+                if (mesh && mesh.material) {
+                    mesh.material.map = texture;
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        }
+    }
+
+    // Enemy textures - apply to all enemies
+    const enemyMap = {
+        'enemy_torso': 'torso',
+        'enemy_head': 'head',
+        'enemy_upper_arm': ['rightUpperArm', 'leftUpperArm'],
+        'enemy_lower_arm': ['rightLowerArm', 'leftLowerArm'],
+        'enemy_thigh': ['rightUpperLeg', 'leftUpperLeg'],
+        'enemy_shin': ['rightLowerLeg', 'leftLowerLeg'],
+        'enemy_foot': ['rightFoot', 'leftFoot']
+    };
+
+    if (enemyMap[textureName]) {
+        game.enemies.forEach(enemy => {
+            const parts = Array.isArray(enemyMap[textureName]) ? enemyMap[textureName] : [enemyMap[textureName]];
+            parts.forEach(partName => {
+                const mesh = enemy[partName];
+                if (mesh && mesh.material) {
+                    mesh.material.map = texture;
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        });
+    }
+
+    // Enemy claw is a Group with multiple meshes
+    if (textureName === 'enemy_claw') {
+        game.enemies.forEach(enemy => {
+            if (enemy.weapon) {
+                enemy.weapon.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        child.material.map = texture;
+                        child.material.needsUpdate = true;
+                    }
+                });
+            }
+        });
+    }
+}
+
+// Apply all loaded textures to an enemy (called after spawn)
+function applyEnemyTextures(enemy) {
+    const enemyTextureMap = {
+        'enemy_torso': 'torso',
+        'enemy_head': 'head',
+        'enemy_upper_arm': ['rightUpperArm', 'leftUpperArm'],
+        'enemy_lower_arm': ['rightLowerArm', 'leftLowerArm'],
+        'enemy_thigh': ['rightUpperLeg', 'leftUpperLeg'],
+        'enemy_shin': ['rightLowerLeg', 'leftLowerLeg'],
+        'enemy_foot': ['rightFoot', 'leftFoot']
+    };
+
+    for (const [textureName, partNames] of Object.entries(enemyTextureMap)) {
+        if (game.textures[textureName]) {
+            const parts = Array.isArray(partNames) ? partNames : [partNames];
+            parts.forEach(partName => {
+                const mesh = enemy[partName];
+                if (mesh && mesh.material) {
+                    mesh.material.map = game.textures[textureName];
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        }
+    }
+
+    // Apply claw texture to all claw parts (weapon is a Group with multiple meshes)
+    if (game.textures['enemy_claw'] && enemy.weapon) {
+        enemy.weapon.traverse(child => {
+            if (child.isMesh && child.material) {
+                child.material.map = game.textures['enemy_claw'];
+                child.material.needsUpdate = true;
+            }
+        });
     }
 }
 
@@ -755,6 +861,9 @@ function spawnEnemy() {
 
     game.enemies.push(enemy);
     game.scene.add(enemy);
+
+    // Apply any loaded textures to the new enemy
+    applyEnemyTextures(enemy);
 }
 
 // Update player
