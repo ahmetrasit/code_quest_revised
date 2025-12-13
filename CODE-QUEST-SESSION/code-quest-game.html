@@ -1071,19 +1071,19 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         const snap = Math.max(0, (swingProg - 0.75) / 0.25);
 
         if (isRightHand) {
-            // RIGHT ARM - Horizontal slash from right to left (in front of player)
+            // RIGHT ARM - Starts inside (near body), slashes outward to the right
 
             // Arm points forward, sweeps horizontally via Y rotation
             game.player.rightArmPivot.rotation.x = Math.PI / 2.2; // Arm forward
-            game.player.rightArmPivot.rotation.y = (0.8 - sweep * 1.6) * windUp; // Sweep right-to-left
-            game.player.rightArmPivot.rotation.z = 0.1; // Slight outward tilt
+            game.player.rightArmPivot.rotation.y = (-0.6 + sweep * 1.4) * windUp; // Start inside, sweep outward
+            game.player.rightArmPivot.rotation.z = 0.1 + sweep * 0.2; // Opens outward
 
-            // Elbow slightly bent, straightens during sweep
-            game.player.rightElbowPivot.rotation.x = -0.4 + sweep * 0.2;
+            // Elbow starts bent, extends during slash
+            game.player.rightElbowPivot.rotation.x = -0.5 + sweep * 0.4;
 
-            // Wrist snaps at end for extra cut
+            // Wrist snaps outward at end
             game.player.rightWristPivot.rotation.x = 0;
-            game.player.rightWristPivot.rotation.y = snap * 0.5;
+            game.player.rightWristPivot.rotation.y = -snap * 0.4;
             game.player.rightWristPivot.rotation.z = 0;
 
             // Left arm in guard
@@ -1093,20 +1093,20 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftElbowPivot.rotation.x = -0.4;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            // Torso rotates with the swing
-            game.player.torso.rotation.y = (0.3 - sweep * 0.6) * windUp;
+            // Torso winds up then follows through
+            game.player.torso.rotation.y = (-0.2 + sweep * 0.5) * windUp;
 
         } else {
-            // LEFT ARM - Horizontal slash from left to right
+            // LEFT ARM - Starts inside (near body), slashes outward to the left
 
             game.player.leftArmPivot.rotation.x = Math.PI / 2.2;
-            game.player.leftArmPivot.rotation.y = (-0.8 + sweep * 1.6) * windUp; // Sweep left-to-right
-            game.player.leftArmPivot.rotation.z = -0.1;
+            game.player.leftArmPivot.rotation.y = (0.6 - sweep * 1.4) * windUp; // Start inside, sweep outward
+            game.player.leftArmPivot.rotation.z = -0.1 - sweep * 0.2; // Opens outward
 
-            game.player.leftElbowPivot.rotation.x = -0.4 + sweep * 0.2;
+            game.player.leftElbowPivot.rotation.x = -0.5 + sweep * 0.4;
 
             game.player.leftWristPivot.rotation.x = 0;
-            game.player.leftWristPivot.rotation.y = -snap * 0.5;
+            game.player.leftWristPivot.rotation.y = snap * 0.4;
             game.player.leftWristPivot.rotation.z = 0;
 
             // Right arm in guard
@@ -1116,8 +1116,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.rightElbowPivot.rotation.x = -0.4;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            // Torso rotates with the swing
-            game.player.torso.rotation.y = (-0.3 + sweep * 0.6) * windUp;
+            // Torso winds up then follows through
+            game.player.torso.rotation.y = (0.2 - sweep * 0.5) * windUp;
         }
 
         game.player.torso.rotation.x = 0.05;
