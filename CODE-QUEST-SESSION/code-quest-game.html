@@ -841,11 +841,35 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             );
         }
 
-        // If attacking while dashing, extend right arm forward
+        // If attacking while dashing, use piston lunge
         if (isAttacking) {
-            game.player.rightArmPivot.rotation.x = 1.2;  // Forward (positive)
-            game.player.rightElbowPivot.rotation.x = 0.3;
+            game.player.rightArmPivot.rotation.x = Math.PI / 2;
+            game.player.rightElbowPivot.rotation.x = 0;
         }
+    }
+    // ATTACKING ANIMATION - Pulley/Piston lunge style (CHECK BEFORE BLOCKING)
+    else if (isAttacking) {
+        // Arm extends straight out like a piston/pulley mechanism
+        game.player.rightArmPivot.rotation.x = Math.PI / 2;  // 90 degrees - arm points straight forward
+        game.player.rightArmPivot.rotation.z = 0;
+
+        // Elbow STRAIGHTENS for maximum reach - like a telescoping piston
+        game.player.rightElbowPivot.rotation.x = 0;  // Fully straight
+
+        // Torso leans into the lunge
+        game.player.torso.rotation.x = 0.3;
+
+        // Left arm pulls back for counterbalance
+        game.player.leftArmPivot.rotation.x = -0.5;
+        game.player.leftElbowPivot.rotation.x = -0.8;
+
+        // Legs brace - front leg forward, back leg straight
+        game.player.rightLegPivot.rotation.x = 0.3;
+        game.player.leftLegPivot.rotation.x = -0.2;
+        game.player.rightKneePivot.rotation.x = 0.2;
+        game.player.leftKneePivot.rotation.x = 0;
+
+        game.player.speedLines.forEach(line => line.visible = false);
     }
     // BLOCKING ANIMATION
     else if (isBlocking) {
@@ -870,31 +894,6 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.rightKneePivot.rotation.x = 0;
             game.player.leftKneePivot.rotation.x = 0;
         }
-
-        game.player.speedLines.forEach(line => line.visible = false);
-    }
-    // ATTACKING ANIMATION - Pulley/Piston lunge style
-    else if (isAttacking) {
-        // Arm extends straight out like a piston/pulley mechanism
-        // Shoulder rotates forward to point arm at target
-        game.player.rightArmPivot.rotation.x = Math.PI / 2;  // 90 degrees - arm points straight forward
-        game.player.rightArmPivot.rotation.z = 0;
-
-        // Elbow STRAIGHTENS (unbends) for maximum reach - like a telescoping piston
-        game.player.rightElbowPivot.rotation.x = 0;  // Fully straight
-
-        // Torso leans into the lunge
-        game.player.torso.rotation.x = 0.3;
-
-        // Left arm pulls back for counterbalance (like a boxer)
-        game.player.leftArmPivot.rotation.x = -0.5;
-        game.player.leftElbowPivot.rotation.x = -0.8;  // Bent back
-
-        // Legs brace - back leg straight, front leg bent
-        game.player.rightLegPivot.rotation.x = 0.3;   // Front leg forward
-        game.player.leftLegPivot.rotation.x = -0.2;   // Back leg braces
-        game.player.rightKneePivot.rotation.x = 0.2;  // Slight bend
-        game.player.leftKneePivot.rotation.x = 0;     // Straight
 
         game.player.speedLines.forEach(line => line.visible = false);
     }
@@ -1218,7 +1217,7 @@ function playerAttack() {
     setTimeout(() => {
         game.player.weapon.position.z = originalZ;
         game.player.isAttacking = false;
-    }, 150);
+    }, 350); // 350ms so animation is visible
     
     const attackRange = 2.5;
     for (let enemy of game.enemies) {
