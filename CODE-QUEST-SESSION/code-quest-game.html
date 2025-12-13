@@ -1060,32 +1060,26 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftWristPivot.rotation.x = 0;
         }
     }
-    // ATTACKING ANIMATION - Fast slash from top, angling down
+    // ATTACKING ANIMATION - 45° up to 45° down slash
     else if (isAttacking) {
         const swingProg = game.player.swingProgress;
         const isRightHand = game.player.swingDirection === 1;
 
-        // VERY FAST - completes in 0.2
-        const slashRaw = Math.min(1, swingProg / 0.2);
+        // Slower so you can see it (0.5)
+        const slashRaw = Math.min(1, swingProg / 0.5);
         const slash = 1 - Math.pow(1 - slashRaw, 2); // Ease out
-
-        // Wrist snap
-        const snapRaw = Math.max(0, (swingProg - 0.1) / 0.9);
-        const snap = Math.pow(snapRaw, 2);
 
         if (isRightHand) {
             // RIGHT ARM - 45° up to 45° down (90° arc)
 
-            // 45° = 0.785 rad. Start ~45° up, end ~45° down
             game.player.rightArmPivot.rotation.x = 0.3 + slash * 1.57; // 45° up -> 45° down
             game.player.rightArmPivot.rotation.z = -0.9 + slash * 1.4;
             game.player.rightArmPivot.rotation.y = 0;
 
             game.player.rightElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
-            game.player.rightWristPivot.rotation.x = 0;
-            game.player.rightWristPivot.rotation.y = 0.5 - slash * 0.8 - snap * 0.5;
-            game.player.rightWristPivot.rotation.z = 0;
+            // Keep wrist stable - no awkward rotation
+            game.player.rightWristPivot.rotation.set(0, 0, 0);
 
             // Left arm tucked
             game.player.leftArmPivot.rotation.x = 0.3;
@@ -1093,7 +1087,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.leftElbowPivot.rotation.x = -0.8;
             game.player.leftWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = -0.4 + slash * 0.6;
+            game.player.torso.rotation.y = -0.3 + slash * 0.5;
 
         } else {
             // LEFT ARM - 45° up to 45° down (90° arc)
@@ -1104,9 +1098,8 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
 
             game.player.leftElbowPivot.rotation.x = -0.5 + slash * 0.4;
 
-            game.player.leftWristPivot.rotation.x = 0;
-            game.player.leftWristPivot.rotation.y = -0.5 + slash * 0.8 + snap * 0.5;
-            game.player.leftWristPivot.rotation.z = 0;
+            // Keep wrist stable - no awkward rotation
+            game.player.leftWristPivot.rotation.set(0, 0, 0);
 
             // Right arm tucked
             game.player.rightArmPivot.rotation.x = 0.3;
@@ -1114,7 +1107,7 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
             game.player.rightElbowPivot.rotation.x = -0.8;
             game.player.rightWristPivot.rotation.set(0, 0, 0);
 
-            game.player.torso.rotation.y = 0.4 - slash * 0.6;
+            game.player.torso.rotation.y = 0.3 - slash * 0.5;
         }
 
         game.player.torso.rotation.x = 0.05;
