@@ -1152,6 +1152,26 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     const isSpinning = game.player.isSpinning;
     const isCharging = game.player.isChargingRight || game.player.isChargingLeft;
 
+    // Reset fist properties when NOT charging (prevents stuck animations)
+    if (!isCharging) {
+        if (game.player.rightHand) {
+            game.player.rightHand.scale.set(1, 1, 1);
+            game.player.rightHand.material.emissiveIntensity = 1.5;
+            game.player.rightHand.material.color.setHex(0x00ffff);
+        }
+        if (game.player.leftHand) {
+            game.player.leftHand.scale.set(1, 1, 1);
+            game.player.leftHand.material.emissiveIntensity = 1.5;
+            game.player.leftHand.material.color.setHex(0x00ffff);
+        }
+        if (game.player.rightFistTrail) {
+            game.player.rightFistTrail.material.opacity = 0;
+        }
+        if (game.player.leftFistTrail) {
+            game.player.leftFistTrail.material.opacity = 0;
+        }
+    }
+
     // CHARGING ANIMATION - fists orbit around each other
     if (isCharging) {
         const maxCharge = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
