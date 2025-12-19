@@ -1034,8 +1034,8 @@ function updatePlayer(delta) {
         if (game.player.spinMomentum <= 0.5) {
             stopSpin();
         } else {
-            // Drain energy while spinning (17 per second)
-            game.stats.energy -= 17 * delta;
+            // Drain energy while spinning (37.8964 per 1.84753 seconds)
+            game.stats.energy -= (37.8964 / 1.84753) * delta;
             if (game.stats.energy <= 0) {
                 game.stats.energy = 0;
                 stopSpin();
