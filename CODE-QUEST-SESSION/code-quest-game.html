@@ -966,71 +966,12 @@ function updatePlayer(delta) {
         game.player.kickCooldown -= delta;
     }
 
-    // Track charging time and update visual feedback
-    const isCharging = game.player.isChargingRight || game.player.isChargingLeft;
-
-    if (isCharging) {
-        // Update charge times
-        if (game.player.isChargingRight) {
-            game.player.rightChargeTime = Math.min(game.player.rightChargeTime + delta, game.player.maxChargeTime);
-        }
-        if (game.player.isChargingLeft) {
-            game.player.leftChargeTime = Math.min(game.player.leftChargeTime + delta, game.player.maxChargeTime);
-        }
-
-        const maxCharge = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
-        const chargePercent = maxCharge / game.player.maxChargeTime;
-        const isFullyCharged = maxCharge >= game.player.maxChargeTime;
-
-        // Spinning animation - arms orbit around each other while charging
-        const spinSpeed = 5 + chargePercent * 10; // Spin faster as charge builds
-        const spinAngle = game.player.animTime * spinSpeed;
-        const orbitRadius = 0.1 + chargePercent * 0.15;
-
-        // Apply spinning orbit to arm pivots
-        if (game.player.rightArmPivot && game.player.leftArmPivot) {
-            // Arms spin around in opposite directions
-            game.player.rightArmPivot.rotation.z = Math.sin(spinAngle) * orbitRadius;
-            game.player.rightArmPivot.rotation.x = 0.4 + Math.cos(spinAngle) * orbitRadius;
-            game.player.leftArmPivot.rotation.z = Math.sin(spinAngle + Math.PI) * orbitRadius;
-            game.player.leftArmPivot.rotation.x = 0.4 + Math.cos(spinAngle + Math.PI) * orbitRadius;
-        }
-
-        // Visual feedback for fists
-        if (game.player.rightHand && game.player.rightHand.material) {
-            const scale = 1 + chargePercent * 0.5;
-            game.player.rightHand.scale.set(scale, scale, scale);
-
-            // Flash when fully charged
-            if (isFullyCharged) {
-                const flash = Math.sin(game.player.animTime * 20) > 0;
-                game.player.rightHand.material.emissiveIntensity = flash ? 6 : 2;
-            } else {
-                game.player.rightHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
-            }
-        }
-        if (game.player.leftHand && game.player.leftHand.material) {
-            const scale = 1 + chargePercent * 0.5;
-            game.player.leftHand.scale.set(scale, scale, scale);
-
-            // Flash when fully charged
-            if (isFullyCharged) {
-                const flash = Math.sin(game.player.animTime * 20) > 0;
-                game.player.leftHand.material.emissiveIntensity = flash ? 6 : 2;
-            } else {
-                game.player.leftHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
-            }
-        }
-    } else {
-        // Reset when not charging
-        if (game.player.rightHand && game.player.rightHand.material) {
-            game.player.rightHand.material.emissiveIntensity = 1.5;
-            game.player.rightHand.scale.set(1, 1, 1);
-        }
-        if (game.player.leftHand && game.player.leftHand.material) {
-            game.player.leftHand.material.emissiveIntensity = 1.5;
-            game.player.leftHand.scale.set(1, 1, 1);
-        }
+    // Track charging time (animation handled in animatePlayer)
+    if (game.player.isChargingRight) {
+        game.player.rightChargeTime = Math.min(game.player.rightChargeTime + delta, game.player.maxChargeTime);
+    }
+    if (game.player.isChargingLeft) {
+        game.player.leftChargeTime = Math.min(game.player.leftChargeTime + delta, game.player.maxChargeTime);
     }
 
     if (game.player.dashTime > 0) {
@@ -1209,9 +1150,77 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
     const walkSpeed = 4;
     const walkAmplitude = 0.4;
     const isSpinning = game.player.isSpinning;
+    const isCharging = game.player.isChargingRight || game.player.isChargingLeft;
 
+    // CHARGING ANIMATION - fists orbit around each other
+    if (isCharging) {
+        const maxCharge = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
+        const chargePercent = maxCharge / game.player.maxChargeTime;
+        const isFullyCharged = maxCharge >= game.player.maxChargeTime - 0.01;
+
+        // Spinning speed increases with charge
+        const spinSpeed = 8 + chargePercent * 12;
+        const spinAngle = game.player.animTime * spinSpeed;
+        const orbitRadius = 0.3 + chargePercent * 0.4;
+
+        // Arms orbit around - extended forward and circling
+        game.player.rightArmPivot.rotation.x = 0.8 + Math.cos(spinAngle) * orbitRadius;
+        game.player.rightArmPivot.rotation.z = Math.sin(spinAngle) * orbitRadius;
+        game.player.rightElbowPivot.rotation.x = 1.5;
+
+        game.player.leftArmPivot.rotation.x = 0.8 + Math.cos(spinAngle + Math.PI) * orbitRadius;
+        game.player.leftArmPivot.rotation.z = Math.sin(spinAngle + Math.PI) * orbitRadius;
+        game.player.leftElbowPivot.rotation.x = 1.5;
+
+        // Fist size and glow
+        const scale = 1 + chargePercent * 0.5;
+        if (game.player.rightHand) {
+            game.player.rightHand.scale.set(scale, scale, scale);
+            if (isFullyCharged) {
+                // Flash rapidly when fully charged
+                const flash = Math.sin(game.player.animTime * 25) > 0;
+                game.player.rightHand.material.emissiveIntensity = flash ? 8 : 2;
+                game.player.rightHand.material.color.setHex(flash ? 0xffffff : 0x00ffff);
+            } else {
+                game.player.rightHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+                game.player.rightHand.material.color.setHex(0x00ffff);
+            }
+        }
+        if (game.player.leftHand) {
+            game.player.leftHand.scale.set(scale, scale, scale);
+            if (isFullyCharged) {
+                // Flash rapidly when fully charged
+                const flash = Math.sin(game.player.animTime * 25) > 0;
+                game.player.leftHand.material.emissiveIntensity = flash ? 8 : 2;
+                game.player.leftHand.material.color.setHex(flash ? 0xffffff : 0x00ffff);
+            } else {
+                game.player.leftHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+                game.player.leftHand.material.color.setHex(0x00ffff);
+            }
+        }
+
+        // Trails visible while charging
+        if (game.player.rightFistTrail) {
+            game.player.rightFistTrail.material.opacity = chargePercent * 0.8;
+        }
+        if (game.player.leftFistTrail) {
+            game.player.leftFistTrail.material.opacity = chargePercent * 0.8;
+        }
+
+        // Legs stable
+        game.player.rightLegPivot.rotation.x = 0.1;
+        game.player.leftLegPivot.rotation.x = -0.1;
+        game.player.rightKneePivot.rotation.x = 0.1;
+        game.player.leftKneePivot.rotation.x = 0.1;
+
+        // Torso slight lean forward
+        game.player.torso.rotation.x = 0.1 + chargePercent * 0.1;
+        game.player.torso.rotation.y = 0;
+
+        game.player.speedLines.forEach(line => line.visible = false);
+    }
     // SPINNING ANIMATION - tornado spin attack
-    if (isSpinning) {
+    else if (isSpinning) {
         // Spin the torso rapidly
         game.player.spinRotation += delta * game.player.spinSpeed;
         game.player.torso.rotation.y = game.player.spinRotation;
