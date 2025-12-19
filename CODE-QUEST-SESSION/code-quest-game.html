@@ -568,7 +568,8 @@ function createPlayer() {
     game.player.isChargingLeft = false;
     game.player.rightChargeTime = 0;
     game.player.leftChargeTime = 0;
-    game.player.maxChargeTime = 4.567; // Max charge time
+    game.player.chargeThreshold = 3; // Hold 3 seconds before charging animation starts
+    game.player.maxChargeTime = 5; // Max charge time
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -1172,11 +1173,16 @@ function animatePlayer(delta, isMovingForward, isMovingBackward, isRotating) {
         }
     }
 
-    // CHARGING ANIMATION - fists orbit around each other
-    if (isCharging) {
-        const maxCharge = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
-        const chargePercent = maxCharge / game.player.maxChargeTime;
-        const isFullyCharged = maxCharge >= game.player.maxChargeTime - 0.01;
+    // CHARGING ANIMATION - only shows after holding for 3 seconds
+    const holdTime = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
+    const isActuallyCharging = isCharging && holdTime >= game.player.chargeThreshold;
+
+    if (isActuallyCharging) {
+        // Calculate charge progress from threshold (3s) to max (5s)
+        const chargeTime = holdTime - game.player.chargeThreshold; // 0 to 2 seconds
+        const chargeDuration = game.player.maxChargeTime - game.player.chargeThreshold; // 2 seconds
+        const chargePercent = Math.min(1, chargeTime / chargeDuration);
+        const isFullyCharged = holdTime >= game.player.maxChargeTime - 0.01;
 
         // Spinning speed increases with charge
         const spinSpeed = 8 + chargePercent * 12;
@@ -2332,19 +2338,39 @@ function onMouseDown(event) {
 }
 
 function onMouseUp(event) {
-    // Release charged attack
+    // Release attack - regular if under 3s, charged if 3-5s
     if (event.button === 0 && game.player.isChargingLeft) {
-        // Release left arm charged attack
-        const chargeMultiplier = 1 + (game.player.leftChargeTime / game.player.maxChargeTime) * 4; // 1x to 5x damage
+        const holdTime = game.player.leftChargeTime;
         game.player.isChargingLeft = false;
-        playerChargedAttack(false, chargeMultiplier, game.player.leftChargeTime);
         game.player.leftChargeTime = 0;
+
+        if (holdTime < game.player.chargeThreshold) {
+            // Quick attack - regular damage
+            playerChargedAttack(false, 1, 0);
+        } else {
+            // Charged attack - damage scales from 1x at 3s to 5x at 5s
+            const chargeTime = holdTime - game.player.chargeThreshold;
+            const chargeDuration = game.player.maxChargeTime - game.player.chargeThreshold;
+            const chargePercent = Math.min(1, chargeTime / chargeDuration);
+            const chargeMultiplier = 1 + chargePercent * 4; // 1x to 5x
+            playerChargedAttack(false, chargeMultiplier, holdTime);
+        }
     } else if (event.button === 2 && game.player.isChargingRight) {
-        // Release right arm charged attack
-        const chargeMultiplier = 1 + (game.player.rightChargeTime / game.player.maxChargeTime) * 4; // 1x to 5x damage
+        const holdTime = game.player.rightChargeTime;
         game.player.isChargingRight = false;
-        playerChargedAttack(true, chargeMultiplier, game.player.rightChargeTime);
         game.player.rightChargeTime = 0;
+
+        if (holdTime < game.player.chargeThreshold) {
+            // Quick attack - regular damage
+            playerChargedAttack(true, 1, 0);
+        } else {
+            // Charged attack - damage scales from 1x at 3s to 5x at 5s
+            const chargeTime = holdTime - game.player.chargeThreshold;
+            const chargeDuration = game.player.maxChargeTime - game.player.chargeThreshold;
+            const chargePercent = Math.min(1, chargeTime / chargeDuration);
+            const chargeMultiplier = 1 + chargePercent * 4; // 1x to 5x
+            playerChargedAttack(true, chargeMultiplier, holdTime);
+        }
     }
 }
 
