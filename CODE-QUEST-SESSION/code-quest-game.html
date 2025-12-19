@@ -568,7 +568,7 @@ function createPlayer() {
     game.player.isChargingLeft = false;
     game.player.rightChargeTime = 0;
     game.player.leftChargeTime = 0;
-    game.player.maxChargeTime = 5; // Max 5 seconds charge
+    game.player.maxChargeTime = 4.567; // Max charge time
     game.player.isDashing = false;
     game.player.dashTime = 0;
     game.player.swingDirection = 1; // 1 = right arm, -1 = left arm
@@ -967,34 +967,70 @@ function updatePlayer(delta) {
     }
 
     // Track charging time and update visual feedback
-    if (game.player.isChargingRight) {
-        game.player.rightChargeTime = Math.min(game.player.rightChargeTime + delta, game.player.maxChargeTime);
-        // Visual feedback - fist glows brighter as charge builds
-        const chargePercent = game.player.rightChargeTime / game.player.maxChargeTime;
+    const isCharging = game.player.isChargingRight || game.player.isChargingLeft;
+
+    if (isCharging) {
+        // Update charge times
+        if (game.player.isChargingRight) {
+            game.player.rightChargeTime = Math.min(game.player.rightChargeTime + delta, game.player.maxChargeTime);
+        }
+        if (game.player.isChargingLeft) {
+            game.player.leftChargeTime = Math.min(game.player.leftChargeTime + delta, game.player.maxChargeTime);
+        }
+
+        const maxCharge = Math.max(game.player.rightChargeTime, game.player.leftChargeTime);
+        const chargePercent = maxCharge / game.player.maxChargeTime;
+        const isFullyCharged = maxCharge >= game.player.maxChargeTime;
+
+        // Spinning animation - arms orbit around each other while charging
+        const spinSpeed = 5 + chargePercent * 10; // Spin faster as charge builds
+        const spinAngle = game.player.animTime * spinSpeed;
+        const orbitRadius = 0.1 + chargePercent * 0.15;
+
+        // Apply spinning orbit to arm pivots
+        if (game.player.rightArmPivot && game.player.leftArmPivot) {
+            // Arms spin around in opposite directions
+            game.player.rightArmPivot.rotation.z = Math.sin(spinAngle) * orbitRadius;
+            game.player.rightArmPivot.rotation.x = 0.4 + Math.cos(spinAngle) * orbitRadius;
+            game.player.leftArmPivot.rotation.z = Math.sin(spinAngle + Math.PI) * orbitRadius;
+            game.player.leftArmPivot.rotation.x = 0.4 + Math.cos(spinAngle + Math.PI) * orbitRadius;
+        }
+
+        // Visual feedback for fists
         if (game.player.rightHand && game.player.rightHand.material) {
-            game.player.rightHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
-            // Scale up fist slightly
             const scale = 1 + chargePercent * 0.5;
             game.player.rightHand.scale.set(scale, scale, scale);
-        }
-    } else if (game.player.rightHand && game.player.rightHand.material) {
-        game.player.rightHand.material.emissiveIntensity = 1.5;
-        game.player.rightHand.scale.set(1, 1, 1);
-    }
 
-    if (game.player.isChargingLeft) {
-        game.player.leftChargeTime = Math.min(game.player.leftChargeTime + delta, game.player.maxChargeTime);
-        // Visual feedback - fist glows brighter as charge builds
-        const chargePercent = game.player.leftChargeTime / game.player.maxChargeTime;
+            // Flash when fully charged
+            if (isFullyCharged) {
+                const flash = Math.sin(game.player.animTime * 20) > 0;
+                game.player.rightHand.material.emissiveIntensity = flash ? 6 : 2;
+            } else {
+                game.player.rightHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+            }
+        }
         if (game.player.leftHand && game.player.leftHand.material) {
-            game.player.leftHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
-            // Scale up fist slightly
             const scale = 1 + chargePercent * 0.5;
             game.player.leftHand.scale.set(scale, scale, scale);
+
+            // Flash when fully charged
+            if (isFullyCharged) {
+                const flash = Math.sin(game.player.animTime * 20) > 0;
+                game.player.leftHand.material.emissiveIntensity = flash ? 6 : 2;
+            } else {
+                game.player.leftHand.material.emissiveIntensity = 1.5 + chargePercent * 4;
+            }
         }
-    } else if (game.player.leftHand && game.player.leftHand.material) {
-        game.player.leftHand.material.emissiveIntensity = 1.5;
-        game.player.leftHand.scale.set(1, 1, 1);
+    } else {
+        // Reset when not charging
+        if (game.player.rightHand && game.player.rightHand.material) {
+            game.player.rightHand.material.emissiveIntensity = 1.5;
+            game.player.rightHand.scale.set(1, 1, 1);
+        }
+        if (game.player.leftHand && game.player.leftHand.material) {
+            game.player.leftHand.material.emissiveIntensity = 1.5;
+            game.player.leftHand.scale.set(1, 1, 1);
+        }
     }
 
     if (game.player.dashTime > 0) {
